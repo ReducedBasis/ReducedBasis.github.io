@@ -1,6 +1,6 @@
 ---
-title: v1.0.0 Released!
-summary: Hugo v1.0.0 released. Download now and follow the guide to get started in 5 minutes!
+title: PBDW v1.0.0 Released!
+summary: PBDW documentation
 date: 2023-01-01
 authors:
   - admin
@@ -12,7 +12,7 @@ image:
   caption: 'Image credit: [**Unsplash**](https://unsplash.com)'
 ---
 
-Hugo v1.0.0 is now available! This release includes new experimental features to try out, improvements to accessibility, the ability for plugins to customize image optimization in Markdown, and many more improvements and bug fixes.
+PBDW v1.0.0 is now available! This release includes new experimental features to try out, improvements to accessibility, the ability for plugins to customize image optimization in Markdown, and many more improvements and bug fixes.
 
 Highlights include:
 

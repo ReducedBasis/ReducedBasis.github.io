@@ -1,0 +1,254 @@
+//FreeFem++ script.edp mesh1.msh mesh2.msh snapshots.txt uh.txt
+//mesh1.msh= maillage fin
+//mesh2.msh= maillage grossier
+//snapshots.txt (vitesses)
+//uh.txt vitesse a approcher
+
+
+load "lapack"
+
+int ns=50; // number of snapshots to use 30
+
+mesh Th=readmesh("mesh1.msh");
+
+fespace Ph(Th,P0);
+Ph h = hTriangle;
+cout << "size of mesh 1 = " << h[].max << endl;
+
+
+mesh Th2=readmesh("mesh2.msh");
+
+fespace Vh(Th,[P2,P2]);
+macro grad(u)[dx(u),dy(u)]//
+
+int i,j,k;
+
+
+Vh[int] [usnsh,vsnsh](ns); //ns Vecteurs vitesse [u1,u2]
+
+fespace Vh2(Th2,[P2,P2]);
+
+Vh2 [uhh,vhh];
+Vh2[int] [usnshh,vsnshh](ns);
+Vh [tmp1,tmp2];
+matrix In=interpolate(Vh,Vh2);
+varf a([u1,v1],[u2,v2])=int2d(Th)(u1*u2+v1*v2); //matrice de masse
+matrix Matmass= a(Vh,Vh);
+varf b([u1,v1],[u2,v2])=int2d(Th)(grad(u1)'*grad(u2)+grad(v1)'*grad(v2)); //matrice de rigidite
+matrix Matrig= b(Vh,Vh);
+real[int] TnormTiF(ns);
+for(int j=0;j<ns;j++){
+	cout<<"lecture snapshot j "<<j<<endl;
+       
+	{ifstream fvel("FF_Snapshots/T_0/solUH"+j+".txt");
+		fvel>>usnshh[j][];
+	}
+	{ifstream fvel("FF_Snapshots/T_2/solU"+j+".txt");
+		fvel>>usnsh[j][];
+	}
+	tmp1[]=Matmass*usnsh[j][];
+	TnormTiF(j)=sqrt(usnsh[j][]'*tmp1[]);
+	cout<<"norme: "<<TnormTiF(j)<<endl;
+}
+cout<<"FIN LECTURE DES VITESSES "<<endl;
+
+////OFFLINE////////
+
+///********************* LECTURE DES VITESSES *******************///
+
+//Solution sur le maillage fin:
+Vh[uex,vex];
+uex[]=usnsh[ns-1][];
+uhh[]=usnshh[ns-1][];
+real TnormTiFex=TnormTiF(ns-1);//norme L2
+real TnormTiFexH1;
+tmp1[]=Matrig*uex[];
+TnormTiFexH1=sqrt(uex[]'*tmp1[]);
+Vh[uhhint,vhhint];
+uhhint[]=In*uhh[];
+////**************GREEDY ALGO*************////
+
+for(int nev=1;nev<=ns;nev++){
+	Vh[int] [e1,e2](nev); //base normée
+	real[int] norme1(nev);
+	int[int] indexlist(ns); //pr recuperer l'indice de la fonction dans la base (-1 sinon)
+	for(int i=0;i<ns;i++){
+		indexlist(i)=-1;
+	}
+	int[int] indexlistrev(nev); //pr recuperer l'indice de la fonction dans la base (-1 sinon)
+	for(int i=0;i<nev;i++){
+		indexlistrev(i)=-1;
+	}
+
+	real testmax=0.;real tmp=0.;int index;real normsn;
+	Vh [tmpvec,tmpv];
+	randinit(100*clock()); //premier indice choisi random
+	index=randreal2()*ns;
+/*tmp=int2d(Th)(uex*usnsh[index]+vex*vsnsh[index]);
+  for(int i=0;i<ns;i++){
+  testmax=int2d(Th)(uex*usnsh[i]+vex*vsnsh[i]);
+  if(testmax>tmp){
+  index=i;
+  tmp=testmax;
+  }
+  }
+
+//	cout<<"premier index "<<index<<endl;
+
+//initialisation
+	real norm=TnormTiF(index);
+	e1[0][]=usnsh[index][]/norm;
+	indexlist(index)=0;
+	indexlistrev(0)=index; //inverse de indexlist (sert pr la methode amelioree)
+
+	for(int i=1;i<nev;i++){
+		//cout<<"i "<<i<<endl;
+		tmpvec[]=0.;
+		testmax=0.;
+		tmp=0.;
+		for (int k=0;k<ns;k++){ //max sur les k
+			if(indexlist(k)==-1){//vitesse pas encore dans la base
+				Vh [vec1,vec2];
+				vec1[]=usnsh[k][];
+				normsn=TnormTiF(k);//sqrt(vec1[]'*tmp1[]);//sqrt(int2d(Th)(square(vec1)+square(vec2)));
+				for(int j=0;j<ns;j++){//gram schmidt
+					if(indexlist(j)!=-1){//deja dans la base
+						int l=indexlist(j);
+						real tmpvalue;
+						tmp1[]=Matmass*e1[l][];
+						tmpvalue=usnsh[k][]'*tmp1[];
+						vec1[]-=e1[l][]*tmpvalue;
+					}
+				}
+				tmp1[]=Matmass*vec1[];
+				real tmpvalue=sqrt(vec1[]'*tmp1[]);
+				testmax=tmpvalue/normsn;
+				if(testmax>tmp){ //algo greedy: on maximise
+					tmp=testmax;
+					index=k;
+					tmpvec[]=vec1[];
+				}
+			}
+		}
+		e1[i][]=tmpvec[];
+
+		tmp1[]=Matmass*e1[i][];
+		norme1(i)=sqrt(e1[i][]'*tmp1[]);
+		e1[i][]=e1[i][]/norme1(i);//sqrt(int2d(Th)(square(e1[i])+square(e2[i])));
+		indexlist(index)=i;//tjs pr recuperer l'indice ds la base de la fct
+		indexlistrev(i)=index;//tjs pr recuperer l'indice ds la base de la fct
+		//	cout<<"index "<<index<<endl;
+	}
+
+//orthog dans H1
+	real[int,int] M(nev,nev);real[int,int] K(nev,nev);
+	for(int i=0;i<nev;i++){
+		for(int j=0;j<nev;j++){
+			Vh [tmp3,tmp4];
+			tmp3[]=Matmass*e1[j][];
+			M(i,j)=e1[i][]'*tmp3[];//int2d(Th)(e1[i]*e1[j]+e2[i]*e2[j]);
+			tmp3[]=Matrig*e1[j][];
+			K(i,j)=e1[i][]'*tmp3[];//int2d(Th)(grad(e1[i])'*grad(e1[j])+grad(e2[i])'*grad(e2[j]));
+		}
+	}
+	real[int,int] vetp(nev,nev);
+	real[int] vp(nev);
+	int k1=dsygvd(K,M,vp,vetp);
+	Vh[int] [e3,e4](nev);
+
+	for(int i=0;i<nev;i++){	
+		e3[i][]=0;
+		for(int j=0;j<nev;j++){
+			e3[i][]+=vetp(j,i)*e1[j][];
+		}
+		e3[i][]*=1./sqrt(vp(i));
+	}
+	
+	//normalisation L2
+	for(int i=0;i<nev;i++){
+		real norme1i;
+		tmp1[]=Matmass*e3[i][];
+		e1[i][]=e3[i][]/sqrt(e3[i][]'*tmp1[]);
+		//e1[i][]=e3[i][]/sqrt(int2d(Th)(square(e3[i])+square(e4[i])));
+	}
+
+
+	Vh [usol,vsol]=[0,0];
+	for(i=0;i<nev;i++){
+		Vh [tmpp1,tmpp2];
+		tmpp1[]=Matmass*e1[i][];
+		real tmpvalue;
+		tmpvalue=uhhint[]'*tmpp1[];
+		usol[]+=int2d(Th)(uhh*e1[i]+vhh*e2[i])*e1[i][];
+		//usol[]+=int2d(Th)(uhh*e1[i]+vhh*e2[i])*e1[i][];
+	}
+	
+	Vh [uref,vref]=[0,0];
+	for(i=0;i<nev;i++){
+		Vh [tmpp1,tmpp2];
+		tmpp1[]=Matmass*e1[i][];
+		real tmpvalue;
+		tmpvalue=uex[]'*tmpp1[];
+		uref[]+=e1[i][]*tmpvalue;
+		//uref[]+=int2d(Th)(uex*e1[i]+vex*e2[i])*e1[i][];
+		//uref[]+=int2d(Th)(grad(uex)'*grad(e1[i])+grad(vex)'*grad(e2[i]))*e1[i][];
+	}
+
+//*********** Methode amelioree *************************//
+	real[int,int] alphaR(nev,nev);
+	real[int,int] betaR(nev,nev);
+	real[int,int] betaRinv(nev,nev);
+	real[int,int] R(nev,nev);
+	for(i=0;i<nev;i++){
+		for(j=0;j<nev;j++){
+			k=indexlistrev(j);
+			Vh [tmpp1,tmpp2];
+			tmpp1[]=Matmass*e1[i][];
+			real tmpvalue;
+			tmpvalue=usnsh[k][]'*tmpp1[];
+			alphaR(i,j)=tmpvalue;//int2d(Th)((usnsh[k])*(e1[i])+(vsnsh[k])*(e2[i]));
+			/*Vh[uint,vint];
+			[uint,vint]=[usnshh[k],vsnshh[k]];
+			//uint[]=In*usnshh[k][];
+			tmpp1[]=Matmass*e1[i][];
+			tmpvalue=uint[]'*tmpp1[];*/
+			betaR(i,j)=int2d(Th)((usnshh[k])*(e1[i])+(vsnshh[k])*(e2[i]));
+		}
+	}
+	
+
+	betaRinv=betaR^-1;
+
+	for(i=0;i<nev;i++){
+		for(j=0;j<nev;j++){
+			R(i,j)=0;
+			for(k=0;k<nev;k++){
+				R(i,j)+=alphaR(i,k)*betaRinv(k,j);
+			}	
+		}
+	}
+	//Solution
+	Vh [usol2,vsol2];
+	usol2[]=0.;
+	real[int] alphatest(nev);
+	for(i=0;i<nev;i++){
+		alphatest(i)=0;
+		for(j=0;j<nev;j++){
+			/*	Vh[tmpp1,tmpp2];
+			tmpp1[]=Matmass*e1[j][];
+			real tmpvalue=uhhint[]'*tmpp1[];
+			real result=R(i,j)*tmpvalue;
+			cout<<"tmpvalue "<<j<<" "<<result<<" ";
+			cout<<"int "<<j<<" "<<R(i,j)*int2d(Th)(uhh*e1[j]+vhh*e2[j])<<endl;
+		       	alphatest(i)+=result;//int2d(Th)(uhh*e1[j]+vhh*e2[j]);*/
+			alphatest(i)+=R(i,j)*int2d(Th)(uhh*e1[j]+vhh*e2[j]);
+		}
+	}
+
+	for(i=0;i<nev;i++){
+		usol2[]+=alphatest(i)*e1[i][];
+	}
+	
+
+
+}

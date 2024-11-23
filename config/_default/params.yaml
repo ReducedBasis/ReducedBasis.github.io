@@ -38,18 +38,18 @@ header:
     logo:
       text: ""
       # Logo filename in `assets/media/` folder
-      filename: "logo.svg"
+      filename: "logo.jpeg"
     button:
       enable: true
-      text: "Get Started"
-      url: "https://hugoblox.com/templates/details/docs/"
+      text: Get Started
+      url: 
     show_search: true
     show_theme_chooser: true
 
 # Site footer
 footer:
   copyright:
-    notice: '© {year} My Company. This work is licensed under {license}'
+    notice: 'Thanks'
     license:
       enable: true
       allow_derivatives: false
@@ -64,12 +64,12 @@ locale:
 # Site features
 features:
   math:
-    enable: false
+    enable: true
   privacy_pack:
     enable: false
   repository:
-    url: 'https://github.com/HugoBlox/hugo-blox-builder/'
-    content_dir: 'starters/documentation/content'
+    url: ''
+    content_dir: ''
     branch: 'main'
   feedback:
     responses:

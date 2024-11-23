@@ -4,11 +4,11 @@ date: 2024-02-17
 weight: 1
 ---
 
-## Quick Start from Template
+## Quick Start 
 
 {{% steps %}}
 
-### Initialize a new site
+### POD
 
 [Click to copy the template on GitHub](https://github.com/new?template_name=theme-documentation&template_owner=HugoBlox)
 

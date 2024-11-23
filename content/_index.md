@@ -10,20 +10,16 @@ design:
 sections:
   - block: hero
     content:
-      title: Write Docs Fast, Focus on Your Content
-      text: The easy, no-code technical documentation solution your users will love 🎉
+      title: Documentation for Reduced Basis Methods (RBM)
+      text: 
       primary_action:
-        text: Get Started
-        url: https://hugoblox.com/templates/details/docs/
-        icon: rocket-launch
-      secondary_action:
         text: Read the docs
         url: /docs/
       announcement:
-        text: "Announcing the release of version 2."
+        text: 
         link:
-          text: "Read more"
-          url: "/blog/"
+          text: 
+          url: 
     design:
       spacing:
         padding: [0, 0, 0, 0]
@@ -37,58 +33,36 @@ sections:
           filename: ""
           filters:
             brightness: 0.5
-  - block: stats
-    content:
-      items:
-        - statistic: "1M+"
-          description: |
-            Websites built  
-            with Hugo Blox
-        - statistic: "10k+"
-          description: |
-            GitHub stars  
-            since 2016
-        - statistic: "3k+"
-          description: |
-            Discord community  
-            for support
-    design:
-      # Section background color (CSS class)
-      css_class: "bg-gray-100 dark:bg-gray-800"
-      # Reduce spacing
-      spacing:
-        padding: ["1rem", 0, "1rem", 0]
   - block: features
     id: features
     content:
-      title: Features
-      text: Collaborate, publish, and maintain technical knowledge with an all-in-one documentation site. Used by 100,000+ startups, enterprises, and researchers.
+      title: Main features
+      text: 
+       "
+       $\\ -$ Pedagogical website on Reduced Basis Methods (non-exhaustive list of methods);
+       
+
+$\\ -$ Python notebook with explanations on simple examples (driven cavity ...);
+
+
+$\\ -$ The goal is not to show most efficient implementations but to explain how each method works and determine different usecases;"
       items:
-        - name: Optimized SEO
+        - name: Reduced basis methods
           icon: magnifying-glass
-          description: Automatic sitemaps, RSS feeds, and rich metadata take the pain out of SEO and syndication.
-        - name: Fast
+          description: Find the reduced basis method that matches much your problem.
+        - name: Documentation
           icon: bolt
-          description: Super fast page load with Tailwind CSS and super fast site building with Hugo.
-        - name: Easy
-          icon: sparkles
-          description: One-click deployment to GitHub Pages. Have your new website live within 5 minutes!
-        - name: No-Code
+          description: Fast understanding with complete documentation. 
+        - name: Python notebook {{< icon name="python" pack="fab" >}} 
           icon: code-bracket
-          description: Edit and design your site just using rich text (Markdown) and configurable YAML parameters.
-        - name: Highly Rated
-          icon: star
-          description: Rated 5-stars by the community.
-        - name: Swappable Blocks
-          icon: rectangle-group
-          description: Build your pages with blocks - no coding required!
+          description: RBM code notebook with easy and concrete examples.
   - block: cta-card
     content:
-      title: "Start Writing with the #1 Effortless Documentation Platform"
-      text: Hugo Blox Docs Theme brings all your technical knowledge together in a single, centralized knowledge base. Easily search and edit it with the tools you use every day!
+      title: "Reduced Basis Methods"
+      text: This website provides a basic introduction to Reduced Basis Methods (RBM). They aim at reducing the runtimes of classical methods of resolution (e.g. finite elements method) for parameterized partial differential equations when they have to be solved for many different parameter values. They have many applications arising from engineering and applied sciences, such as real-time simulation or calibration problems. For each RBM, a short description with links to several articles is presented, and a simple application in a Python notebook and links to other computational langages (such as Fenics/Feel++/FreeFem++) are provided.
       button:
         text: Get Started
-        url: https://hugoblox.com/templates/details/docs/
+        url: /docs/
     design:
       card:
         # Card background color (CSS class)
