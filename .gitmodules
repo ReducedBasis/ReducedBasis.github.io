@@ -1,4 +1,4 @@
 [submodule "public"]
 	path = public
-	url = https://github.com/grosjean1/grosjean1.github.io.git
+	url = https://github.com/ReducedBasis/ReducedBasis.github.io.git
 	branch = main
