@@ -8,11 +8,11 @@ text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hove
 <span data-hb-sidebar-toggle><svg fill="none" viewBox="0 0 24 24" stroke="currentcolor" class="h-[18px] min-w-[18px] rounded-sm p-0.5 hover:bg-gray-800/5 dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="origin-center transition-transform rtl:-rotate-180"/></svg></span></a><div class="ltr:pr-0 overflow-hidden"><ul class=hb-sidebar-list><li class="flex flex-col"><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/eim/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/nirb2grid/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdwadv/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdwhelmholtz/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/podgalerkin/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/podi/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
-text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdw/>My Post</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
-text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdwadv/>My Post</a></li></ul></div></li><li><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdw/>My Post</a></li></ul></div></li><li><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/blog/>Recent and Upcoming methods
 <span data-hb-sidebar-toggle><svg fill="none" viewBox="0 0 24 24" stroke="currentcolor" class="h-[18px] min-w-[18px] rounded-sm p-0.5 hover:bg-gray-800/5 dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="origin-center transition-transform rtl:-rotate-180"/></svg></span></a><div class="ltr:pr-0 overflow-hidden"><ul class=hb-sidebar-list><li class="flex flex-col"><a class="hb-sidebar-custom-link
 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/blog/v1.0.0/>PBDW v1 released!</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
@@ -69,12 +69,13 @@ In other words, we should choose a function $\Phi$ which maximizes the averaged 
 \end{equation}$$<p>with $\lVert{\Phi}\rVert^2=1$ (To simplify the notation, $\lVert{\cdot}\rVert_{L^2(\Omega \times \mathcal{G})}$ is written $\lVert{\cdot}\rVert$).
 We can show that equation (4) is equivalent to an eigenvalue problem.</p><p>Indeed, to find the maximum, we use the Lagrangian of (4) $J[\phi]=\overline{|(u,\phi)|^2}-\lambda(\rVert{\phi}\rVert^2-1) $ and a variation $\psi$, such that:</p>$$\begin{equation}
 \frac{d}{d\delta}J[\phi+\delta \psi]_{|\delta=0}=0.
-\end{equation}$$<p>$$</p><p>\begin{align*}
-\frac{d}{d\delta}J[\phi+\delta\psi]<em>{|\delta=0}&=\frac{d}{d\delta}[\overline{|(u,\phi+\delta\psi)|<sup>2}-\lambda(\lVert{\phi+\delta\psi}\rVert</sup>2-1]</em>{|\delta=0},\nonumber \
-&=\frac{d}{d\delta}[\overline{(u,\phi+\delta\psi)(\phi+\delta\psi,u)}-\lambda(\phi+\delta\psi,\phi+\delta\psi)]_{|\delta=0},\nonumber \
-&=\overline{(u,\phi)(\psi,u)+(u,\psi)(\phi,u)}-\lambda((\phi,\psi)+(\phi,\psi)),\nonumber \
+\end{equation}$$$$
+\begin{align*}
+\frac{d}{d\delta}J[\phi+\delta\psi]_{|\delta=0}&=\frac{d}{d\delta}[\overline{|(u,\phi+\delta\psi)|^2}-\lambda(\lVert{\phi+\delta\psi}\rVert^2-1]_{|\delta=0},\nonumber \\
+&=\frac{d}{d\delta}[\overline{(u,\phi+\delta\psi)(\phi+\delta\psi,u)}-\lambda(\phi+\delta\psi,\phi+\delta\psi)]_{|\delta=0},\nonumber \\
+&=\overline{(u,\phi)(\psi,u)+(u,\psi)(\phi,u)}-\lambda((\phi,\psi)+(\phi,\psi)),\nonumber \\
 &=2Re[\overline{(u,\psi)(\phi,u)}-\lambda(\phi,\psi)].
-\end{align*}$$</p><p>Thus, permuting mean operations and integrations entails:</p>$$\begin{align*}
+\end{align*}$$<p>Thus, permuting mean operations and integrations entails:</p>$$\begin{align*}
 \frac{d}{d\delta}J[\phi+\delta\psi]_{|\delta=0}&=2\overline{(\int_{X}u(X)\cdot\psi^*(X)\ dX) (\int_{X}\phi(X')\cdot u^*(X')\ dX')}-2\lambda\int_{X}\phi(X)\cdot\psi^*(X)dX, \nonumber\\
 &=2\int_{X}[\int_{X}\overline{u(X)\cdot u^*(X')}\phi(X')dX'-\lambda\phi(X)]\cdot\psi^*(X)dX.
 \end{align*}
