@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Introduction to RBM | RBM Docs</title><link>https://example.com/docs/</link><atom:link href="https://example.com/docs/index.xml" rel="self" type="application/rss+xml"/><description>Introduction to RBM</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><image><url>https://example.com/media/icon_hu8177510199143947247.png</url><title>Introduction to RBM</title><link>https://example.com/docs/</link></image><item><title>POD-Galerkin</title><link>https://example.com/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Introduction to RBM | RBM Docs</title><link>https://reducedbasis.github.io/docs/</link><atom:link href="https://reducedbasis.github.io/docs/index.xml" rel="self" type="application/rss+xml"/><description>Introduction to RBM</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><image><url>https://reducedbasis.github.io/media/icon_hu8177510199143947247.png</url><title>Introduction to RBM</title><link>https://reducedbasis.github.io/docs/</link></image><item><title>POD-Galerkin</title><link>https://reducedbasis.github.io/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
 &lt;h2 id="offline">Offline&lt;/h2>
 &lt;p>A POD procedure (in other words, SVD or PCA)&lt;/p>
 &lt;h2 id="online">Online&lt;/h2>
@@ -225,7 +225,7 @@ u_h(\nu)\simeq u_{h,m}+\sum_{j=1}^N \alpha_j \Phi_h^j.
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>POD-Interpolation</title><link>https://example.com/docs/podi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/podi/</guid><description>&lt;p>The PODI (POD+Interpolation) method is a non-intrusive version of the Galerkin-POD.&lt;/p>
+&lt;/ul></description></item><item><title>POD-Interpolation</title><link>https://reducedbasis.github.io/docs/podi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/podi/</guid><description>&lt;p>The PODI (POD+Interpolation) method is a non-intrusive version of the Galerkin-POD.&lt;/p>
 &lt;p>The offline part that creates the $N$ reduced basis functions remains the same.&lt;/p>
 &lt;p>Then, a further step is added. It consists in computing the reduced coefficients for all snapshots within a training set of parameters $\mathcal{G}_{Ntrain} \subset \mathcal{G}$.&lt;/p>
 &lt;p>We denote by $\alpha_i(\mu_k),i = 1,...,N, k = 1,...,Ntrain$ these coefficients. We obtain $Ntrain$ pairs $(\mu_k,\alpha (\mu_k))$, where $\alpha(\mu_k) \in \mathbb{R}^N$.
@@ -258,7 +258,7 @@ Thanks to an interpolation/regression, the function that maps the input paramete
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>EIM</title><link>https://example.com/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) is used with the POD-Galerkin to obtain an affine decomposition on the parameter.&lt;/p>
+&lt;/ul></description></item><item><title>EIM</title><link>https://reducedbasis.github.io/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) is used with the POD-Galerkin to obtain an affine decomposition on the parameter.&lt;/p>
 &lt;p>Indeed, as explained in the Galerkin-POD section (
 ), we need an affine decomposition with respects to the parameter, then the parameter-independent terms are computed offline, making the online computation faster.&lt;/p>
 &lt;p>The EIM build a linear combination of fully determined solutions from basis functions $(q_i)_{i=1,...,M}$ depending on some interpolating points (called &amp;ldquo;magic points&amp;rdquo;) and some values $(\alpha_i)_{i=1,...,M}$ relying on certain instances of the parameter $\nu$, selected within the algorithm.
@@ -294,7 +294,7 @@ $$ g^M(x,\nu^{target})=\sum_{i=1}^M \alpha(\nu^{target}) q(x). $$&lt;p>There exi
 &lt;ul>
 &lt;li>
 &lt;/li>
-&lt;/ul></description></item><item><title>NIRB 2-grid</title><link>https://example.com/docs/nirb-2grid/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/nirb-2grid/</guid><description>&lt;h4 id="description">Description&lt;/h4>
+&lt;/ul></description></item><item><title>NIRB 2-grid</title><link>https://reducedbasis.github.io/docs/nirb-2grid/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/nirb-2grid/</guid><description>&lt;h4 id="description">Description&lt;/h4>
 &lt;p>Offline-Online Decomposition:&lt;/p>
 &lt;ul>
 &lt;li>
@@ -382,7 +382,7 @@ Ru_{Hh}^N(\mu)=\overset{N}{\underset{i,j=1}{\sum}}\ R_{ij}\ \alpha_j^H(\mu)\ \Ph
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>PBDW</title><link>https://example.com/docs/pbdw/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/pbdw/</guid><description>&lt;p>Let us present one method that combines model order reduction and a data assimilation problem: the Parametrized-Background Data-Weak method (PBDW).
+&lt;/ul></description></item><item><title>PBDW</title><link>https://reducedbasis.github.io/docs/pbdw/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/pbdw/</guid><description>&lt;p>Let us present one method that combines model order reduction and a data assimilation problem: the Parametrized-Background Data-Weak method (PBDW).
 We aim to approximate the true physical state $u_{true}$ by $u^{bk}+\eta$ where $\eta$ is an update correction of unmodeled physics, or unanticipated and non-parametric uncertainty (constructed from several observations), and $u^{bk}$ is an approximation obtained from a best-knowledge model.&lt;/p>
 &lt;h2 id="offline">Offline&lt;/h2>
 &lt;ul>

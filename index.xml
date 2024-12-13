@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Home | RBM Docs</title><link>https://example.com/</link><atom:link href="https://example.com/index.xml" rel="self" type="application/rss+xml"/><description>Home</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 24 Oct 2023 00:00:00 +0000</lastBuildDate><image><url>https://example.com/media/icon_hu8177510199143947247.png</url><title>Home</title><link>https://example.com/</link></image><item><title>POD-Galerkin</title><link>https://example.com/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Home | RBM Docs</title><link>https://reducedbasis.github.io/</link><atom:link href="https://reducedbasis.github.io/index.xml" rel="self" type="application/rss+xml"/><description>Home</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 24 Oct 2023 00:00:00 +0000</lastBuildDate><image><url>https://reducedbasis.github.io/media/icon_hu8177510199143947247.png</url><title>Home</title><link>https://reducedbasis.github.io/</link></image><item><title>POD-Galerkin</title><link>https://reducedbasis.github.io/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
 &lt;h2 id="offline">Offline&lt;/h2>
 &lt;p>A POD procedure (in other words, SVD or PCA)&lt;/p>
 &lt;h2 id="online">Online&lt;/h2>
@@ -225,7 +225,7 @@ u_h(\nu)\simeq u_{h,m}+\sum_{j=1}^N \alpha_j \Phi_h^j.
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>POD-Interpolation</title><link>https://example.com/docs/podi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/podi/</guid><description>&lt;p>The PODI (POD+Interpolation) method is a non-intrusive version of the Galerkin-POD.&lt;/p>
+&lt;/ul></description></item><item><title>POD-Interpolation</title><link>https://reducedbasis.github.io/docs/podi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/podi/</guid><description>&lt;p>The PODI (POD+Interpolation) method is a non-intrusive version of the Galerkin-POD.&lt;/p>
 &lt;p>The offline part that creates the $N$ reduced basis functions remains the same.&lt;/p>
 &lt;p>Then, a further step is added. It consists in computing the reduced coefficients for all snapshots within a training set of parameters $\mathcal{G}_{Ntrain} \subset \mathcal{G}$.&lt;/p>
 &lt;p>We denote by $\alpha_i(\mu_k),i = 1,...,N, k = 1,...,Ntrain$ these coefficients. We obtain $Ntrain$ pairs $(\mu_k,\alpha (\mu_k))$, where $\alpha(\mu_k) \in \mathbb{R}^N$.
@@ -258,7 +258,7 @@ Thanks to an interpolation/regression, the function that maps the input paramete
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>EIM</title><link>https://example.com/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) is used with the POD-Galerkin to obtain an affine decomposition on the parameter.&lt;/p>
+&lt;/ul></description></item><item><title>EIM</title><link>https://reducedbasis.github.io/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) is used with the POD-Galerkin to obtain an affine decomposition on the parameter.&lt;/p>
 &lt;p>Indeed, as explained in the Galerkin-POD section (
 ), we need an affine decomposition with respects to the parameter, then the parameter-independent terms are computed offline, making the online computation faster.&lt;/p>
 &lt;p>The EIM build a linear combination of fully determined solutions from basis functions $(q_i)_{i=1,...,M}$ depending on some interpolating points (called &amp;ldquo;magic points&amp;rdquo;) and some values $(\alpha_i)_{i=1,...,M}$ relying on certain instances of the parameter $\nu$, selected within the algorithm.
@@ -294,7 +294,7 @@ $$ g^M(x,\nu^{target})=\sum_{i=1}^M \alpha(\nu^{target}) q(x). $$&lt;p>There exi
 &lt;ul>
 &lt;li>
 &lt;/li>
-&lt;/ul></description></item><item><title>NIRB 2-grid</title><link>https://example.com/docs/nirb-2grid/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/nirb-2grid/</guid><description>&lt;h4 id="description">Description&lt;/h4>
+&lt;/ul></description></item><item><title>NIRB 2-grid</title><link>https://reducedbasis.github.io/docs/nirb-2grid/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/nirb-2grid/</guid><description>&lt;h4 id="description">Description&lt;/h4>
 &lt;p>Offline-Online Decomposition:&lt;/p>
 &lt;ul>
 &lt;li>
@@ -382,7 +382,7 @@ Ru_{Hh}^N(\mu)=\overset{N}{\underset{i,j=1}{\sum}}\ R_{ij}\ \alpha_j^H(\mu)\ \Ph
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>PBDW</title><link>https://example.com/docs/pbdw/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/docs/pbdw/</guid><description>&lt;p>Let us present one method that combines model order reduction and a data assimilation problem: the Parametrized-Background Data-Weak method (PBDW).
+&lt;/ul></description></item><item><title>PBDW</title><link>https://reducedbasis.github.io/docs/pbdw/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/pbdw/</guid><description>&lt;p>Let us present one method that combines model order reduction and a data assimilation problem: the Parametrized-Background Data-Weak method (PBDW).
 We aim to approximate the true physical state $u_{true}$ by $u^{bk}+\eta$ where $\eta$ is an update correction of unmodeled physics, or unanticipated and non-parametric uncertainty (constructed from several observations), and $u^{bk}$ is an approximation obtained from a best-knowledge model.&lt;/p>
 &lt;h2 id="offline">Offline&lt;/h2>
 &lt;ul>
@@ -473,7 +473,7 @@ The PBDW framework may accommodate any observation functional that is consistent
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title/><link>https://example.com/post/eim/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/eim/</guid><description>&lt;h1 id="the-empiral-interpolation-method-eim">The Empiral Interpolation Method (EIM)&lt;/h1>
+&lt;/ul></description></item><item><title/><link>https://reducedbasis.github.io/post/eim/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/eim/</guid><description>&lt;h1 id="the-empiral-interpolation-method-eim">The Empiral Interpolation Method (EIM)&lt;/h1>
 &lt;p>Script by Elise Grosjean (ENSTA-Paris,
 )&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
@@ -705,7 +705,7 @@ New magic point [0.65625, 0.03125]
 //** Approximation: 0.7184530924757091 true solution: 0.7071067811865475 error 0.0001082689218868671 **//
 //** Approximation: 0.7184530924757091 true solution: 0.7183448235538222 error 0.0001082689218868671 **//
 &lt;/code>&lt;/pre>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://example.com/post/nirb2grid/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/nirb2grid/</guid><description>&lt;h1 id="the-nirb-two-grid-method">THE NIRB TWO-GRID METHOD&lt;/h1>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://reducedbasis.github.io/post/nirb2grid/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/nirb2grid/</guid><description>&lt;h1 id="the-nirb-two-grid-method">THE NIRB TWO-GRID METHOD&lt;/h1>
 &lt;p>Script by Elise Grosjean (
 )&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
@@ -1369,7 +1369,7 @@ Parameter nu: 0.00909090909090909
 Parameter nu: 0.00909090909090909
 L2 relative compression error = 0.0036365919269498643
 H1 relative compression error = 0.0051482180568242445
-&lt;/code>&lt;/pre></description></item><item><title/><link>https://example.com/post/pbdwadv/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/pbdwadv/</guid><description>&lt;h1 id="the-pbdw-method">THE PBDW method&lt;/h1>
+&lt;/code>&lt;/pre></description></item><item><title/><link>https://reducedbasis.github.io/post/pbdwadv/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/pbdwadv/</guid><description>&lt;h1 id="the-pbdw-method">THE PBDW method&lt;/h1>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">executable&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">numpy&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">executable&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">matplotlib&lt;/span>
@@ -1917,7 +1917,7 @@ H1 relative error: 0.003935527762515732
 &lt;div class="w-100" >&lt;img src="./pbdw_27_4.png" alt="png" loading="lazy" data-zoomable />&lt;/div>
 &lt;/div>&lt;/figure>
 &lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://example.com/post/pbdwhelmholtz/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/pbdwhelmholtz/</guid><description>&lt;h1 id="the-pbdw-method">THE PBDW method&lt;/h1>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://reducedbasis.github.io/post/pbdwhelmholtz/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/pbdwhelmholtz/</guid><description>&lt;h1 id="the-pbdw-method">THE PBDW method&lt;/h1>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">executable&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">numpy&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">executable&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">matplotlib&lt;/span>
@@ -2468,7 +2468,7 @@ H1 rel error: 0.00945153090424034
 &lt;div class="w-100" >&lt;img src="./PBDW_27_4.png" alt="png" loading="lazy" data-zoomable />&lt;/div>
 &lt;/div>&lt;/figure>
 &lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://example.com/post/podgalerkin/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/podgalerkin/</guid><description>&lt;h1 id="the-pod-galerkin-method">THE POD-GALERKIN METHOD&lt;/h1>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://reducedbasis.github.io/post/podgalerkin/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/podgalerkin/</guid><description>&lt;h1 id="the-pod-galerkin-method">THE POD-GALERKIN METHOD&lt;/h1>
 &lt;p>Script by Elise Grosjean (ENSTA-Paris,
 )&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
@@ -3051,7 +3051,7 @@ H1 compression relative error with true coefficients = 0.0004519958605203538
 Online L2 compression relative error = 0.00045574044329428794
 Online H1 compression relative error = 0.0004416712899857957
 &lt;/code>&lt;/pre>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://example.com/post/podi/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/podi/</guid><description>&lt;h1 id="the-pod-i-method">THE POD-I METHOD&lt;/h1>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title/><link>https://reducedbasis.github.io/post/podi/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/podi/</guid><description>&lt;h1 id="the-pod-i-method">THE POD-I METHOD&lt;/h1>
 &lt;p>Script by Elise Grosjean (ENSTA-Paris,
 )&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
@@ -3903,7 +3903,7 @@ H1 compression relative error with true coefficients = 0.007270888691335297
 Online L2 relative compression error = 0.047371716791088904
 Online H1 relative compression error = 0.04101786094341483
 &lt;/code>&lt;/pre>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>My Post</title><link>https://example.com/post/pbdw/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://example.com/post/pbdw/</guid><description>&lt;h1 id="the-pbdw-method">THE PBDW method&lt;/h1>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>My Post</title><link>https://reducedbasis.github.io/post/pbdw/</link><pubDate>Fri, 13 Dec 2024 10:19:20 +0100</pubDate><guid>https://reducedbasis.github.io/post/pbdw/</guid><description>&lt;h1 id="the-pbdw-method">THE PBDW method&lt;/h1>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">sys&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">executable&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">numpy&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">executable&lt;/span>&lt;span class="p">}&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">matplotlib&lt;/span>
@@ -4452,8 +4452,8 @@ H1 relative error: 0.003935527762515732
 &lt;div class="w-100" >&lt;img src="./pbdw_27_4.png" alt="png" loading="lazy" data-zoomable />&lt;/div>
 &lt;/div>&lt;/figure>
 &lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>PBDW v1 released!</title><link>https://example.com/blog/v1.0.0/</link><pubDate>Sun, 01 Dec 2024 00:00:00 +0000</pubDate><guid>https://example.com/blog/v1.0.0/</guid><description>&lt;p>
-&lt;/p></description></item><item><title>TODO list</title><link>https://example.com/blog/todolist/</link><pubDate>Sun, 01 Dec 2024 00:00:00 +0000</pubDate><guid>https://example.com/blog/todolist/</guid><description>&lt;p>Upcoming methods:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>PBDW v1 released!</title><link>https://reducedbasis.github.io/blog/v1.0.0/</link><pubDate>Sun, 01 Dec 2024 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/blog/v1.0.0/</guid><description>&lt;p>
+&lt;/p></description></item><item><title>TODO list</title><link>https://reducedbasis.github.io/blog/todolist/</link><pubDate>Sun, 01 Dec 2024 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/blog/todolist/</guid><description>&lt;p>Upcoming methods:&lt;/p>
 &lt;ul>
 &lt;li>
 &lt;p>GEIM&lt;/p>
@@ -4467,7 +4467,7 @@ H1 relative error: 0.003935527762515732
 &lt;li>
 &lt;p>PGD&lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>Cavity</title><link>https://example.com/showcase/cavity/</link><pubDate>Sat, 17 Feb 2024 00:00:00 +0000</pubDate><guid>https://example.com/showcase/cavity/</guid><description>&lt;p>Test of 2D cavity with POD-Galerkin&lt;/p></description></item><item><title>Events</title><link>https://example.com/events/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://example.com/events/</guid><description>&lt;h2 id="conferencesworkshopscourses">Conferences/Workshops/Courses&lt;/h2>
+&lt;/ul></description></item><item><title>Cavity</title><link>https://reducedbasis.github.io/showcase/cavity/</link><pubDate>Sat, 17 Feb 2024 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/showcase/cavity/</guid><description>&lt;p>Test of 2D cavity with POD-Galerkin&lt;/p></description></item><item><title>Events</title><link>https://reducedbasis.github.io/events/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/events/</guid><description>&lt;h2 id="conferencesworkshopscourses">Conferences/Workshops/Courses&lt;/h2>
 &lt;p>Welcome to the RBM Events Calendar!&lt;/p>
 &lt;ul>
 &lt;li>Upcoming&lt;/li>
