@@ -8,8 +8,8 @@ type: landing
 sections:
   - block: hero
     content:
-      title: Get Inspirated
-      text: 'Get inspired by exploring RB examples'
+      title: More examples
+      text: 
   - block: collection
     content:
       filters:

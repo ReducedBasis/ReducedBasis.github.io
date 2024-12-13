@@ -42,17 +42,17 @@ sections:
        $\\ -$ Pedagogical website on Reduced Basis Methods (non-exhaustive list of methods);
        
 
-$\\ -$ Python notebook with explanations on simple examples (driven cavity ...);
+$\\ -$ Python notebook with explanations on simple examples (driven cavity, Helmholtz equation, advection-diffusion ...);
 
 
-$\\ -$ The goal is not to show most efficient implementations but to explain how each method works and determine different usecases;"
+$\\ -$ The goal is not to show most efficient implementations but to explain how each method works and which to choose in a given context;"
       items:
         - name: Reduced basis methods
           icon: magnifying-glass
-          description: Find the reduced basis method that matches much your problem.
+          description: Find the reduced basis method that best matches your problem.
         - name: Documentation
           icon: bolt
-          description: Fast understanding with complete documentation. 
+          description: Detailed  documentation. 
         - name: Python notebook {{< icon name="python" pack="fab" >}} 
           icon: code-bracket
           description: RBM code notebook with easy and concrete examples.

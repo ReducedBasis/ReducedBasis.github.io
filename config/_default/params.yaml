@@ -14,7 +14,7 @@ marketing:
     site_type: Project
     local_business_type: ''
     org_name: ''
-    description: 'A highly-customizable Hugo documentation theme powered by Hugo Blox website builder.'
+    description: ''
     twitter: 'GetResearchDev'
   analytics:
     google_analytics: ''
