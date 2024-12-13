@@ -45,13 +45,12 @@ $$$$
 \end{align}
 $$$$\begin{equation*}
 a(u,v;\nu)=(u \cdot \nabla u,v)+\nu(\nabla v,\nabla u), \textrm{ and } b(u,q)=-(\nabla \cdot u, q).
-\end{equation*}$$&lt;p>
-We assume the problem is well posed and that it satisfies the so-called inf sup condition (or LBB).&lt;/p>
+\end{equation*}$$&lt;p>We assume the problem is well posed and that it satisfies the so-called inf sup condition (or LBB).&lt;/p>
 &lt;p>With FEM, there exist several types of stable elements. A classical one is the Taylor-Hood element, where basis functions of degree $k$ are used for the pressure and basis functions of degree $k+1$ are employed for the velocities. Thus, we use Taylor-Hood $\mathbb{P}_2-\mathbb{P}_1$ elements to solve the problem in the python notebook. The velocity is approximated with $\mathbb{P}_2$ FE, whereas the pressure is approximated with $\mathbb{P}_1$ FE.&lt;/p>
+&lt;p>For the nonlinearity we adopt a fixed-point iteration scheme, and after multiplying by test functions $q$ and $v$ (resp. for pressure and velocity), which in variational form reads:&lt;/p>
 $$\begin{equation}
 \nu (\nabla u^k, \nabla v) + ((u^{k-1} \cdot \nabla) u^k,v) - (p^k, \nabla \cdot v) - (q, \nabla \cdot u^k) + 10^{-10} (p^k, q) =0, \textrm{in } \Omega,
-\end{equation}$$&lt;p>
-where $u^{k-1}$ is the previous step solution, and we iterate until a threshold is reached (until $\|u^{k}-u^{k-1}\| &lt; \varepsilon $).&lt;/p>
+\end{equation}$$&lt;p>where $u^{k-1}$ is the previous step solution, and we iterate until a threshold is reached (until $\|u^{k}-u^{k-1}\| &lt; \varepsilon $).&lt;/p>
 &lt;p>With the Taylor-Hood elements, we obtain the system $\mathbf{K} \mathbf{x} =\mathbf{f}$ to solve where $\mathbf{K}= \begin{pmatrix}
 \mathbf{A} &amp; -\mathbf{B}^T\\
 -\mathbf{B} &amp; 10^{-10} \mathbf{C}
@@ -75,49 +74,62 @@ From the algorithm point of view, the parameter-independent terms are computed o
 To put it in a nutshell, the POD consists in extracting dominants modes from random data in order to be able to approximate a solution of the problem for a new parameter very quickly.
 Thus, we seek a function (a mode) which is highly correlated in average with the realizations $\{u(X)\}$, where $X=(x,\nu_i)_{i=1,\dots,Ntrain} \in \Omega \times \mathcal{G}$, $Ntrain$ is the number of snapshots, $x=(x_1,x_2) \in \Omega$, and $\nu$ is the varying parameter in $\mathcal{G} \subset \mathbb{R}$ (which can also be in $\mathbb{R}^n$).
 In other words, we should choose a function $\Phi$ which maximizes the averaged projection on the observations (the average is represented by $\overline{\cdot}$), suitably normalized in the sense of least squares, i.e. which maximizes the quantity $\overline{|(u,\psi)|^2}$. So we end up with the following constrained optimization problem:&lt;/p>
+&lt;p>Find $\Phi$ such that\&lt;/p>
 $$\begin{equation}
 \displaystyle \max_{\psi \in L^2(\Omega \times \mathcal{G})}
 \frac{\overline{|(u,\psi)|^2}}{\lVert{\psi}\rVert^2}=\frac{\overline{|(u,\Phi)|^2}}{\lVert{\Phi}\rVert^2},
-\end{equation}$$&lt;p>
-with $\lVert{\Phi}\rVert^2=1$ (To simplify the notation, $\lVert{\cdot}\rVert_{L^2(\Omega \times \mathcal{G})}$ is written $\lVert{\cdot}\rVert$).
+\end{equation}$$&lt;p>with $\lVert{\Phi}\rVert^2=1$ (To simplify the notation, $\lVert{\cdot}\rVert_{L^2(\Omega \times \mathcal{G})}$ is written $\lVert{\cdot}\rVert$).
 We can show that equation (4) is equivalent to an eigenvalue problem.&lt;/p>
+&lt;p>Indeed, to find the maximum, we use the Lagrangian of (4) $J[\phi]=\overline{|(u,\phi)|^2}-\lambda(\rVert{\phi}\rVert^2-1) $ and a variation $\psi$, such that:&lt;/p>
 $$\begin{equation}
 \frac{d}{d\delta}J[\phi+\delta \psi]_{|\delta=0}=0.
-\end{equation}$$$$
-\begin{align*}
-\frac{d}{d\delta}J[\phi+\delta\psi]_{|\delta=0}&amp;=\frac{d}{d\delta}[\overline{|(u,\phi+\delta\psi)|^2}-\lambda(\lVert{\phi+\delta\psi}\rVert^2-1]_{|\delta=0},\nonumber \\
-&amp;=\frac{d}{d\delta}[\overline{(u,\phi+\delta\psi)(\phi+\delta\psi,u)}-\lambda(\phi+\delta\psi,\phi+\delta\psi)]_{|\delta=0},\nonumber \\
-&amp;=\overline{(u,\phi)(\psi,u)+(u,\psi)(\phi,u)}-\lambda((\phi,\psi)+(\phi,\psi)),\nonumber \\
-&amp;=2Re[\overline{(u,\psi)(\phi,u)}-\lambda(\phi,\psi)].
-\end{align*}$$$$\begin{align*}
+\end{equation}$$&lt;p>
+$$&lt;/p>
+&lt;p>\begin{align*}
+\frac{d}{d\delta}J[\phi+\delta\psi]&lt;em>{|\delta=0}&amp;amp;=\frac{d}{d\delta}[\overline{|(u,\phi+\delta\psi)|&lt;sup>2}-\lambda(\lVert{\phi+\delta\psi}\rVert&lt;/sup>2-1]&lt;/em>{|\delta=0},\nonumber \
+&amp;amp;=\frac{d}{d\delta}[\overline{(u,\phi+\delta\psi)(\phi+\delta\psi,u)}-\lambda(\phi+\delta\psi,\phi+\delta\psi)]_{|\delta=0},\nonumber \
+&amp;amp;=\overline{(u,\phi)(\psi,u)+(u,\psi)(\phi,u)}-\lambda((\phi,\psi)+(\phi,\psi)),\nonumber \
+&amp;amp;=2Re[\overline{(u,\psi)(\phi,u)}-\lambda(\phi,\psi)].
+\end{align*}$$&lt;/p>
+&lt;p>Thus, permuting mean operations and integrations entails:&lt;/p>
+$$\begin{align*}
 \frac{d}{d\delta}J[\phi+\delta\psi]_{|\delta=0}&amp;=2\overline{(\int_{X}u(X)\cdot\psi^*(X)\ dX) (\int_{X}\phi(X')\cdot u^*(X')\ dX')}-2\lambda\int_{X}\phi(X)\cdot\psi^*(X)dX, \nonumber\\
 &amp;=2\int_{X}[\int_{X}\overline{u(X)\cdot u^*(X')}\phi(X')dX'-\lambda\phi(X)]\cdot\psi^*(X)dX.
 \end{align*}
-$$$$\begin{equation}
+$$&lt;p>$\psi$ being an arbitrary variation, and because $u$ are not functions here but vectors, the auto-correlation function is replaced by a tensor product matrix, and we obtain from (5)&lt;/p>
+$$\begin{equation}
 \int_{X}\overline{u(X) \otimes u^*(X')}\phi(X')dX'=\lambda \phi(X).
 \end{equation}$$$$\begin{equation*}
 R(X,X')=\overline{u(X) \otimes u^*(X')}
 \end{equation*}$$&lt;p>
 is the correlation tensor in two points.
 The classical method consists in replacing the mean $\overline{(\cdot)}$ by an average over the parameter of interest. On the contrary, the snapshots POD replaces the mean as a space mean over the spatial domain $\Omega$.&lt;/p>
+&lt;p>We obtain the following eigenvalue problem:&lt;/p>
 $$\begin{equation}
 \mathcal{R}\phi=\lambda\phi.
 \end{equation}$$$$\frac{1}{Ntrain}\sum_{k=1}^{Ntrain} (u_i,u_k) \Phi_k=\lambda \Phi_i,$$&lt;p>
 where $\Phi_i=\sum_{k=1}^{Ntrain} a_k^i u_k, \ i=1,\dots,N.$&lt;/p>
+&lt;p>$\mathcal{R}$ is a positive linear compact self-adjoint operator on $L^2(\Omega \times \mathcal{G})$. Indeed,&lt;/p>
 $$\begin{align} (\mathcal{R}\Phi,\Phi)&amp;=\int_X\int_X R(X,X')\Phi(X')dX' \cdot \Phi^*(X)dX, \nonumber \\
 &amp;=\int_X\int_{X} \overline{u(X) \otimes u^*(X')}\Phi(X')dX' \cdot\Phi^*(X)dX, \nonumber \\
 &amp;=\overline{\int_{X} u(X) \cdot \Phi^*(X) dX \int_{X} u^*(X')\cdot\Phi(X')dX'}, \nonumber \\
 &amp;=\overline{\lVert{(u,\Phi)}\rVert^2} \geq 0. \nonumber \end{align}$$&lt;p>
 In the same manner, we can show that $(\mathcal{R}\Phi,\Psi)=(\Phi,\mathcal{R}\Psi)$ for all $(\Psi,\Phi)\in [L^2(\Omega \times \mathcal{G})]^2$.&lt;/p>
+&lt;p>Therefore, the spectral theory can be applied and guarantees that the maximization problem (4) has one unique solution equal to the largest eigenvalue of the problem (7).
+which can be reformulate as a Fredholm integral equation&lt;/p>
 $$\begin{equation}
 \int_{X}R(X,X')\Phi_n(X')dX'=\lambda^n \Phi_n(X),
 \end{equation}$$&lt;p>As a consequence, there exists a countable family of solutions $\{\lambda^n,\Phi_n\}$ to equation (8) which represent the eigenvalues and the POD eigenvectors of order $n=1,\dots,+\infty$.
 The $(\Phi_n)_{n=1,\dots,+\infty}$ are orthogonal (and we can normalize them), and the eigenvalues are all positives.&lt;/p>
+&lt;p>The POD eigenfunctions define a orthonormal basis of the reduced space. Thus, any realization of $u $ can be approched by a linear combination of these functions:&lt;/p>
 $$\begin{equation}
 u^N(X)=\overset{N}{\underset{n=1}{\sum}}a_n\Phi_n(X),
-\end{equation}$$$$\begin{equation}
+\end{equation}$$&lt;p>where the coefficients $a_n$ in the case of the snapshot-POD are defined as&lt;/p>
+$$\begin{equation}
 a_n=\int_{\Omega} u \Phi_n(x),
-\end{equation}$$$$E(\Phi_1,\dots,\Phi_N)=\sum_{i=1}^{Ntrain} \lVert u_i - u_i^N \rVert_2^2=\sum_{i=N+1}^{Ntrain} \lambda_i.$$$$\begin{equation}
+\end{equation}$$&lt;p>We can measure the accuracy of the reduced basis through the POD Energy&lt;/p>
+$$E(\Phi_1,\dots,\Phi_N)=\sum_{i=1}^{Ntrain} \lVert u_i - u_i^N \rVert_2^2=\sum_{i=N+1}^{Ntrain} \lambda_i.$$&lt;p>So, we can select the number of modes $N$ such that $E(\Phi_1,\dots,\Phi_N) \leq \varepsilon$ for a prescribed tolerance. Thus, the number of modes required for the RB can be given by the Relative Information Content (RIC), denoted $I(N)$. The RIC is defined as the ratio between the $N$ first eigenvalues and their total sum and must be close to one.&lt;/p>
+$$\begin{equation}
 I(N)=\frac{\overset{N}{\underset{k=1}{\sum}}\lambda_k}{\overset{N_{train}}{\underset{i=1}{\sum}}\lambda_i}.
 \end{equation}
 $$&lt;ul>
@@ -125,11 +137,16 @@ $$&lt;ul>
 &lt;h4 id="offline-algorithm">Offline algorithm&lt;/h4>
 &lt;/li>
 &lt;/ul>
+&lt;p>The snapshots POD is obtained from the eigenvalue equation (8) where the average is evaluated as a spatial average on the domain $\Omega$ and the variable $X$ is related to the parameters $\nu$. We denote $Ntrain$ the number of training snapshots ($N \leq Ntrain$).
+The reduced space is denoted $V_h^N$ and can be represented either by the POD basis or by the snapshots which define two basis of $V_h^N$. Thus, the POD eigenfunctions $\Phi$ can be written as a linear combinaison of the dataset:&lt;/p>
 $$\begin{equation*}
 \Phi_i=\overset{Ntrain}{\underset{k=1}{\sum}}a_i^k u_k, i=1,\dots,N
-\end{equation*}$$$$\begin{equation}
+\end{equation*}$$&lt;p>where $(a_k)_{k=1,\dots,Ntrain}$ remains to be determined.
+With equation (14), we have&lt;/p>
+$$\begin{equation}
 \frac{1}{Ntrain}\overset{Ntrain}{\underset{k=1}{\sum}}(u_i,u_k)\ \Phi_k=\lambda \Phi_i, i=1,\dots,Ntrain.
-\end{equation}$$$$\begin{equation}
+\end{equation}$$&lt;p>Therefore, replacing $\Phi$ by its new expression in equation yields&lt;/p>
+$$\begin{equation}
 \frac{1}{Ntrain} \overset{Ntrain}{\underset{k=1}{\sum}}(u_i,u_k) a_k^i=\lambda a_i^i,\quad \forall i=1, \dots, Ntrain.
 \end{equation}$$&lt;p>Let us now describe the algorithm in detail:&lt;/p>
 &lt;ul>
@@ -141,14 +158,17 @@ At the end of this step, we obtain a vector of snapshots $(u_h^1,\dots,u^{Ntrain
 &lt;p>Then, we calculate the correlation matrix $C_{i,j}=\int_{\Omega} u_{h,f}^i\cdot u_{h,f}^j$, and we solve the $Ntrain \times Ntrain$ eigenvalue problem: $C v_h^n=\lambda_n {I}_d v_h^n$, for $n=1...Ntrain$, where $v_h^n=(a_{h,1}^n,\dots,a_{h,Ntrain}^n)$.&lt;/p>
 &lt;/li>
 &lt;li>
+&lt;p>Suppose the eigenvalues are well ordered ($\lambda_1>...>\lambda_{Ntrain}>0$), we calculate the $N$ RB functions normalized, with $N\leq Ntrain$ the number of required modes:&lt;/p>
+&lt;/li>
+&lt;/ul>
 $$\begin{equation*}
 \Phi_h^i=\sum_{j=1}^{Ntrain}a_{h,i}^j u_{h,f}^j, \forall i=1,...,N,
-\end{equation*}$$$$ and we normalize them
-\begin{equation*}
-\Phi_h^i=\frac{\Phi_h^i}{\lVert{\Phi_h^i}\rVert} (\mathrm{which \ is \ equivalent \ to \ dividing \ by \ }\sqrt{\lambda_i}). \end{equation*}$$$$\begin{equation*}
-\Phi_h^i=\Phi_h^i-\sum_{j=1}^{i-1} (\Phi_h^i,\Phi_h^j)\Phi_h^j.\end{equation*}$$&lt;p>
-The number $N$ of functions in the POD basis is chosen, such that $N$ remains small and $I(N)=\frac{\underset{k=1}{\overset{N}{\sum}}\lambda_k}{\underset{k=1}{\overset{Ntrain}{\sum}}\lambda_k}$ is close to $1$.&lt;/p>
-&lt;/li>
+\end{equation*}$$&lt;p>and we normalize them&lt;/p>
+$$\begin{equation*}
+\Phi_h^i=\frac{\Phi_h^i}{\lVert{\Phi_h^i}\rVert} (\mathrm{which \ is \ equivalent \ to \ dividing \ by \ }\sqrt{\lambda_i}). \end{equation*}$$&lt;p>For the eigenvalues that are too small, we can use a further step which consists in a Gram-Schmidt procedure to ensure the basis orthonormality:&lt;/p>
+$$\begin{equation*}
+\Phi_h^i=\Phi_h^i-\sum_{j=1}^{i-1} (\Phi_h^i,\Phi_h^j)\Phi_h^j.\end{equation*}$$&lt;p>The number $N$ of functions in the POD basis is chosen, such that $N$ remains small and $I(N)=\frac{\underset{k=1}{\overset{N}{\sum}}\lambda_k}{\underset{k=1}{\overset{Ntrain}{\sum}}\lambda_k}$ is close to $1$.&lt;/p>
+&lt;ul>
 &lt;li>
 &lt;h4 id="online-algorithm-pod-galerkin-projection-on-the-reduced-model">Online algorithm (POD-Galerkin Projection on the reduced model)&lt;/h4>
 &lt;/li>
@@ -157,33 +177,41 @@ The number $N$ of functions in the POD basis is chosen, such that $N$ remains sm
 &lt;p>This stage is much faster than the execution of HF codes. The assembling reduced order matrices can be computed offline, and therefore only the new problem with these matrices needs to be solved during the online phase.
 In what follows, the Galerkin-projection for the velocity field does not contain the pressure field. Indeed, in our model problem, we only use the ROM to derived an approximation on the velocity in the reduced space $ \mathbf{V}_h^N$, since here the basis functions satisfy both the boundary conditions and the divergence-free constrain of the continuity equation.&lt;/p>
 &lt;p>Having reduced bases $(\Phi_i)_{i=1,\dots,N}$ for the velocity and $(\Psi_i)_{i=1,\dots,N}$ for the pressure (but we will see that there is no need to compute this RB), we may complete the offline part by assembling the new matrices of our problem:&lt;/p>
+&lt;p>Instead of using $(u,p)$ in our scheme as before&lt;/p>
 $$\begin{equation*}
 \nu (\nabla u, \nabla v) + ((u \cdot \nabla) u,v) - (p, \nabla \cdot v) - (q, \nabla \cdot u) + 10^{-10} (p, q) =0, \textrm{in } \Omega,
-\end{equation*}$$&lt;p> we replace them by $(\overline{u}+ \sum_{j=1}^N \alpha^k_j \Phi_j,\overline{p} + \sum_{j=1}^N \beta^k_j \Psi_j)$ and $(v,q)$ by $(\Phi_i,\Psi_i)$. Thus, we get:&lt;/p>
+\end{equation*}$$&lt;p>we replace them by $(\overline{u}+ \sum_{j=1}^N \alpha^k_j \Phi_j,\overline{p} + \sum_{j=1}^N \beta^k_j \Psi_j)$ and $(v,q)$ by $(\Phi_i,\Psi_i)$. Thus, we get:&lt;/p>
 $$\begin{align*}
 &amp; \nu (\nabla \overline{u}, \nabla \Phi_i) + \nu ( \sum_{j=1}^N \alpha^k_j \nabla \Phi_j, \nabla \Phi_i)\\
 &amp; \quad \quad \quad + (\overline{u} \cdot \nabla \overline{u},\Phi_i) + (\overline{u} \cdot \sum_{j=1}^N \alpha^k_j \nabla \Phi_j,\Phi_i) + (\sum_{j=1}^N \alpha^{k}_j \Phi_j \cdot \nabla \overline{u},\Phi_i) + (\sum_{r=1}^N \alpha^{k-1}_r \Phi_r \cdot \sum_{j=1}^N \alpha^k_j \nabla \Phi_j,\Phi_i) \\
 &amp; \quad \quad \quad - (\overline{p}, \nabla \cdot \Phi_i) - (\sum_{j=1}^N \beta^k_j \Psi_j, \nabla \cdot \Phi_i)- (\Psi_i, \nabla \cdot \overline{u}) - (\Psi_i, \sum_{j=1}^N \alpha^k_j \nabla \cdot \Phi_j) + 10^{-10} (\overline{p}, \Psi_i) + 10^{-10} (\sum_{j=1}^N \beta^k_j \Psi_j, \Psi_i) =0, \textrm{in } \Omega.
-\end{align*}$$$$\begin{equation*}
+\end{align*}$$&lt;p>Since $\nabla \cdot u^k=0$, the reduced basis functions $(\Phi_i)_{i=1,\dots,N}$ belongs to $V^N \subset V_{div}:=\{v \in V, \nabla \cdot v=0\}$ and $(\Psi_i)_{i=1,\dots,N}$ is of average equal to $0$. Therefore it gives&lt;/p>
+$$\begin{equation*}
 \nu (\nabla \overline{u}, \nabla \Phi_i) + \nu \sum_{j=1}^N \alpha^k_j ( \nabla \Phi_j, \nabla \Phi_i)+(\overline{u} \cdot \nabla \overline{u},\Phi_i) + \sum_{j=1}^N \alpha^k_j (\overline{u} \cdot \nabla \Phi_j,\Phi_i) + \sum_{j=1}^N \alpha^{k}_j ( \Phi_j \cdot \nabla \overline{u},\Phi_i) + \sum_{j=1}^N \sum_{r=1}^N \alpha^k_j \alpha^{k-1}_r (\Phi_r \cdot \nabla \Phi_j,\Phi_i) =0, \textrm{in } \Omega.
-\end{equation*}$$&lt;p>
-We remark that we do not need to generate the reduced basis for the pressure, and that we obtain three kind of terms:&lt;/p>
+\end{equation*}$$&lt;p>We remark that we do not need to generate the reduced basis for the pressure, and that we obtain three kind of terms:&lt;/p>
 &lt;ul>
 &lt;li>the ones that do not depend on the coefficients $\alpha$,&lt;/li>
 &lt;li>the ones that depend on the coefficients $\alpha^k$,&lt;/li>
 &lt;li>and one term that depends on the $\alpha^k$ and on the $\alpha^{k-1}$.&lt;/li>
 &lt;/ul>
+&lt;p>Therefore, we shall regroup these terms such that we get:&lt;/p>
 $$\begin{equation}
 \mathcal{A}_i + \sum_{j=1}^N \mathcal{B}_{ij} \alpha^k_j + \sum_{j=1}^N \sum_{r=1}^N \mathcal{C}_{ijr} \alpha^k_j \alpha^{k-1}_r =0,
-\end{equation}$$$$\begin{equation*}
+\end{equation}$$&lt;p>where&lt;/p>
+$$\begin{equation*}
 \mathcal{A}_i = \underbrace{\nu (\nabla \overline{u}, \nabla \Phi_i)}_{A1} + \underbrace{(\overline{u} \cdot \nabla \overline{u},\Phi_i)}_{A2}, \textrm { and } \mathcal{B}_{ij} = \underbrace{\nu ( \nabla \Phi_j, \nabla \Phi_i)}_{B1} + \underbrace{(\overline{u} \cdot \nabla \Phi_j,\Phi_i)}_{B2} + \underbrace{( \Phi_j \cdot \nabla \overline{u},\Phi_i)}_{B3} \textrm{ and }\mathcal{C}_{ijr} =( \Phi_r \cdot \nabla \Phi_j,\Phi_i).
-\end{equation*}$$$$\begin{equation*}
+\end{equation*}$$&lt;p>For the online stage, we just set the new parameter of interest $\nu$, and with the notations&lt;/p>
+$$\begin{equation*}
 M_{ij}=\mathcal{B}_{ij}+\sum_{k=1}^N \mathcal{C}_{ijl} \alpha^{k-1}_l
-\end{equation*}$$$$\begin{equation*}
+\end{equation*}$$&lt;p>and&lt;/p>
+$$\begin{equation*}
 b_i=\mathcal{A}_i,
-\end{equation*}$$$$\begin{equation*}
+\end{equation*}$$&lt;p>the coefficients $(\alpha_{j}^k)_{j=1,...,N}$ at iteration $k$ are obtained by solving the equation:&lt;/p>
+$$\begin{equation*}
 \mathbf{M} \alpha^k=\mathbf{b},
-\end{equation*}$$$$\begin{equation*}
+\end{equation*}$$&lt;p>and we iterate on the residual $\lVert{{\alpha^k}-{\alpha^{k-1}}}\rVert$ until reaching a small treshold in order to obtain ${\alpha}$.
+Finally, the approximation is given by&lt;/p>
+$$\begin{equation*}
 u_h(\nu)\simeq u_{h,m}+\sum_{j=1}^N \alpha_j \Phi_h^j.
 \end{equation*}$$&lt;h2 id="references">References&lt;/h2>
 &lt;ul>
@@ -403,7 +431,8 @@ it follows that, for any $q \in \mathcal{U}_M$, $(u_{true}(\mu^{true}),q)=(u_{tr
 &lt;p>We can now proceed with the PBDW estimation statement:&lt;/p>
 &lt;p>given a parameter $\mu^{true} \in \mathcal{P}^{bk}$, find $(u^*_{N,M}(\mu^{true}) \in \mathcal{U},z^*_{N,M}(\mu^{true}) \in \mathcal{Z}_N, \eta^*_{N,M}(\mu^{true}) \in \mathcal{U}_M)$ such that&lt;/p>
 $$\begin{equation}(u^*_{N,M}(\mu^{true}) ,z^*_{N,M}(\mu^{true}) , \eta^*_{N,M}(\mu^{true})) =\underset{\eta_{M,N} \in \mathcal{U}}{\underset{z_{N,M}\in \mathcal{Z}_N}{\underset{u_{N,M} \in \mathcal{U}}{\textrm{arginf}}}} \ \lVert \eta_{N,M} \rVert^2
-\end{equation}$$$$ \begin{align}
+\end{equation}$$&lt;p>subject to&lt;/p>
+$$ \begin{align}
 &amp;(u_{N,M},v)=(\eta_{N,M},v)+(z_{N,M},v), \ \forall v\in \mathcal{U},\\
 &amp; (u_{N,M},\Phi)=(u_{true}(\mu^{true}),\Phi), \ \forall \Phi \in \mathcal{U}_M.
 \end{align}

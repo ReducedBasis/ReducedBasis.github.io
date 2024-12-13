@@ -44,7 +44,7 @@ $$\forall m=1,\dots,M, \ q_m = R_{\mathcal{U}} l^0_m,$$
 which is the Riesz representation of the functional. It allows us to introduce hierarchical observable spaces,
 $$ \forall M=1,\dots,M_{max}, \ \mathcal{U}_M= \mathrm{span} \{q_m\}_{m=1}^M. $$</li></ul><p>Since $(u_{true}(\mu^{true}),q_m) = (u_{true}(\mu^{true}),R_{\mathcal{U}} l^0_m )=l^0_m(u_{true}(\mu^{true}))$,
 it follows that, for any $q \in \mathcal{U}_M$, $(u_{true}(\mu^{true}),q)=(u_{true}(\mu^{true}),\sum_{m=1}^M \alpha_m q_m )= \sum_{m=1}^M \alpha_m l^0_m(u_{true}(\mu^{true}))$, hence $(u_{true}(\mu^{true}),q)$ is a weighted sum of experimental observations.</p><ul><li>We now have two kind of reduced bases: the reduced basis $(\Phi_i)_{i,\dots,N}$ that represents the spaces $\mathcal{Z}_N$ and the reduced basis $(q_i)_{i=1,\dots,M}$ that represents the observation spaces $\mathcal{U}_M$.</li></ul><p>We can now proceed with the PBDW estimation statement:</p><p>given a parameter $\mu^{true} \in \mathcal{P}^{bk}$, find $(u^*_{N,M}(\mu^{true}) \in \mathcal{U},z^*_{N,M}(\mu^{true}) \in \mathcal{Z}_N, \eta^*_{N,M}(\mu^{true}) \in \mathcal{U}_M)$ such that</p>$$\begin{equation}(u^*_{N,M}(\mu^{true}) ,z^*_{N,M}(\mu^{true}) , \eta^*_{N,M}(\mu^{true})) =\underset{\eta_{M,N} \in \mathcal{U}}{\underset{z_{N,M}\in \mathcal{Z}_N}{\underset{u_{N,M} \in \mathcal{U}}{\textrm{arginf}}}} \ \lVert \eta_{N,M} \rVert^2
-\end{equation}$$$$ \begin{align}
+\end{equation}$$<p>subject to</p>$$ \begin{align}
 &(u_{N,M},v)=(\eta_{N,M},v)+(z_{N,M},v), \ \forall v\in \mathcal{U},\\
 & (u_{N,M},\Phi)=(u_{true}(\mu^{true}),\Phi), \ \forall \Phi \in \mathcal{U}_M.
 \end{align}
