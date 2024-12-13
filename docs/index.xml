@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Introduction to RBM | RBM Docs</title><link>https://ReducedBasis.github.io/docs/</link><atom:link href="https://ReducedBasis.github.io/docs/index.xml" rel="self" type="application/rss+xml"/><description>Introduction to RBM</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><image><url>https://ReducedBasis.github.io/media/icon_hu8177510199143947247.png</url><title>Introduction to RBM</title><link>https://ReducedBasis.github.io/docs/</link></image><item><title>POD-Galerkin</title><link>https://ReducedBasis.github.io/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://ReducedBasis.github.io/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
+&lt;h2 id="offline">Offline&lt;/h2>
+&lt;p>A POD procedure (in other words, SVD or PCA)&lt;/p>
+&lt;h2 id="online">Online&lt;/h2>
+&lt;p>A reduced problem with a Galerkin projection to solve&lt;/p>
+&lt;h2 id="codes">Codes:&lt;/h2>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;h2 id="details">Details:&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;h4 id="a-model-problem">A model problem&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;p>We start with a model problem to illustrate the POD-Galerkin method.&lt;/p>
+&lt;p>Let us introduce the stationary Navier-Stokes equation in the 2D lid driven cavity problem with non-homogeneous Dirichlet boundary conditions on the upper side, homogeneous Dirichlet (no-slip) boundary conditions on the remaining sides, where the domain $\Omega$ is the unit square.
+The 2D steady Navier-stokes equation writes:&lt;/p>
+$$
+\begin{align*}
+&amp;-\nu \Delta u + (u \cdot \nabla) u + \nabla p =0, \textrm{ in } \Omega,\\
+&amp; \nabla. u=0, \textrm{ in } \Omega,\\
+&amp; (u_1,u_2)=(1,0), \textrm{ on } \Omega_{up}:=\partial \Omega \cap \{y=1\},\\
+&amp; (u_1,u_2)=(0,0), \textrm{ on } \partial \Omega \backslash \Omega_{up},
+\end{align*}
+$$&lt;p>
+where&lt;/p>
+&lt;p>$u=(u_1,u_2) \in V:=H^1_{d,0}(\Omega)^2=\{u \in~H^1(\Omega)^2, u=~(0,0) \textrm{ on } \partial \Omega \backslash \Omega_{up}, \ \textrm{and } u=(1,0) \textrm{ on } \Omega_{up} \}$ represents the velocity of the incompressible fluid, $ p \in L^2(\Omega)$ its pressure, and $\nu=\frac{1}{Re}$ where $Re$ is the Reynolds parameter. Here, the Reynolds number is our parameter of interest ($\mu=Re$).&lt;/p>
+&lt;p>We impose the average of the pressure $\int_{\Omega} p$
+to be equal to $0$ to ensure its uniqueness.&lt;/p>
+&lt;p>The problem 2D lid driven cavity problem can be rewritten into its variational form:&lt;/p>
+$$
+\begin{equation*}
+\textrm{ Find }(u,p) \in V \times L^2_0(\Omega)),\textrm{ such that}
+\end{equation*}
+$$$$
+\begin{align}
+&amp; a(u,v;\nu)+b(v,p)=0,\forall v \in H^1_0(\Omega)^2 \\
+&amp; b(u,q)=0,\forall q \in L^2_0(\Omega)
+\end{align}
+$$$$\begin{equation*}
+a(u,v;\nu)=(u \cdot \nabla u,v)+\nu(\nabla v,\nabla u), \textrm{ and } b(u,q)=-(\nabla \cdot u, q).
+\end{equation*}$$&lt;p>
+We assume the problem is well posed and that it satisfies the so-called inf sup condition (or LBB).&lt;/p>
+&lt;p>With FEM, there exist several types of stable elements. A classical one is the Taylor-Hood element, where basis functions of degree $k$ are used for the pressure and basis functions of degree $k+1$ are employed for the velocities. Thus, we use Taylor-Hood $\mathbb{P}_2-\mathbb{P}_1$ elements to solve the problem in the python notebook. The velocity is approximated with $\mathbb{P}_2$ FE, whereas the pressure is approximated with $\mathbb{P}_1$ FE.&lt;/p>
+$$\begin{equation}
+\nu (\nabla u^k, \nabla v) + ((u^{k-1} \cdot \nabla) u^k,v) - (p^k, \nabla \cdot v) - (q, \nabla \cdot u^k) + 10^{-10} (p^k, q) =0, \textrm{in } \Omega,
+\end{equation}$$&lt;p>
+where $u^{k-1}$ is the previous step solution, and we iterate until a threshold is reached (until $\|u^{k}-u^{k-1}\| &lt; \varepsilon $).&lt;/p>
+&lt;p>With the Taylor-Hood elements, we obtain the system $\mathbf{K} \mathbf{x} =\mathbf{f}$ to solve where $\mathbf{K}= \begin{pmatrix}
+\mathbf{A} &amp; -\mathbf{B}^T\\
+-\mathbf{B} &amp; 10^{-10} \mathbf{C}
+\end{pmatrix}$, $\mathbf{x}$ stands for the tuple velocity-pressure $(u_1^k,u_2^k,p^k)$, and where the assembled matrix $\mathbf{A}$ corresponds to the bilinear part $ \nu (\nabla u^k, \nabla v) + ((u^{k-1} \cdot \nabla) u^k),v) $, the matrix $ B$ to the bilinear part $( p^k ,\nabla \cdot v)$ and $\mathbf{C}$ is the mass matrix applied to the pressure variable ($(\cdot,\cdot)$ represents either the $L^2$ inner-product onto the velocity space or onto the pressure space).&lt;/p>
+&lt;p>In order to use the POD-Galerkin method, in a general context, we need an affine decomposition with respects to the parameter $\nu$.
+From the algorithm point of view, the parameter-independent terms are computed offline, making the online computation faster. If this assumption is not fulfilled, we resort to
+.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;h4 id="proper-orthogonal-decomposition-pod-galerkin">Proper Orthogonal Decomposition (POD) Galerkin&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;p>The POD has been applied to a wide range of applications (turbulence, image processing applications, analysis of signal, in data compression, optimal control,&amp;hellip;).&lt;/p>
+&lt;p>We detail its offline part, and the online projection stage. There are several forms of POD (classical POD, Snapshots POD, spectral POD,&amp;hellip;), and here we consider the Snapshots POD algorithm for the offline part. To sum up, the algorithm is as follows:&lt;/p>
+&lt;ul>
+&lt;li>In the offline part, the RB is built with several instances (called the snapshots) of the problem, for several well chosen parameter values. This step consists, first, in forming the snapshots correlation matrix and in retrieving its eigenvalues and its eigenvectors (as in an Singular Value Decomposition). Then, the reduced basis (RB) functions are constructed by linear combinations of the first $N$ eigenvectors with the snapshots, after having sorted the eigenvalues in descending order.&lt;/li>
+&lt;li>The online part consists in solving the reduced problem which uses the RB and a Galerkin projection for a new parameter $\nu \in \mathcal{G}$. At the end of the algorithm, a reduced solution for $\nu$ is created.&lt;/li>
+&lt;/ul>
+&lt;h5 id="offline-stage">OFFLINE STAGE&lt;/h5>
+&lt;p>For one parameterized problem, the POD approximation consists in determining a basis of proper orthogonal modes which represents the best the solutions. The modes are obtained by solving an eigenvalue problem.
+To put it in a nutshell, the POD consists in extracting dominants modes from random data in order to be able to approximate a solution of the problem for a new parameter very quickly.
+Thus, we seek a function (a mode) which is highly correlated in average with the realizations $\{u(X)\}$, where $X=(x,\nu_i)_{i=1,\dots,Ntrain} \in \Omega \times \mathcal{G}$, $Ntrain$ is the number of snapshots, $x=(x_1,x_2) \in \Omega$, and $\nu$ is the varying parameter in $\mathcal{G} \subset \mathbb{R}$ (which can also be in $\mathbb{R}^n$).
+In other words, we should choose a function $\Phi$ which maximizes the averaged projection on the observations (the average is represented by $\overline{\cdot}$), suitably normalized in the sense of least squares, i.e. which maximizes the quantity $\overline{|(u,\psi)|^2}$. So we end up with the following constrained optimization problem:&lt;/p>
+$$\begin{equation}
+\displaystyle \max_{\psi \in L^2(\Omega \times \mathcal{G})}
+\frac{\overline{|(u,\psi)|^2}}{\lVert{\psi}\rVert^2}=\frac{\overline{|(u,\Phi)|^2}}{\lVert{\Phi}\rVert^2},
+\end{equation}$$&lt;p>
+with $\lVert{\Phi}\rVert^2=1$ (To simplify the notation, $\lVert{\cdot}\rVert_{L^2(\Omega \times \mathcal{G})}$ is written $\lVert{\cdot}\rVert$).
+We can show that equation (4) is equivalent to an eigenvalue problem.&lt;/p>
+$$\begin{equation}
+\frac{d}{d\delta}J[\phi+\delta \psi]_{|\delta=0}=0.
+\end{equation}$$$$
+\begin{align*}
+\frac{d}{d\delta}J[\phi+\delta\psi]_{|\delta=0}&amp;=\frac{d}{d\delta}[\overline{|(u,\phi+\delta\psi)|^2}-\lambda(\lVert{\phi+\delta\psi}\rVert^2-1]_{|\delta=0},\nonumber \\
+&amp;=\frac{d}{d\delta}[\overline{(u,\phi+\delta\psi)(\phi+\delta\psi,u)}-\lambda(\phi+\delta\psi,\phi+\delta\psi)]_{|\delta=0},\nonumber \\
+&amp;=\overline{(u,\phi)(\psi,u)+(u,\psi)(\phi,u)}-\lambda((\phi,\psi)+(\phi,\psi)),\nonumber \\
+&amp;=2Re[\overline{(u,\psi)(\phi,u)}-\lambda(\phi,\psi)].
+\end{align*}$$$$\begin{align*}
+\frac{d}{d\delta}J[\phi+\delta\psi]_{|\delta=0}&amp;=2\overline{(\int_{X}u(X)\cdot\psi^*(X)\ dX) (\int_{X}\phi(X')\cdot u^*(X')\ dX')}-2\lambda\int_{X}\phi(X)\cdot\psi^*(X)dX, \nonumber\\
+&amp;=2\int_{X}[\int_{X}\overline{u(X)\cdot u^*(X')}\phi(X')dX'-\lambda\phi(X)]\cdot\psi^*(X)dX.
+\end{align*}
+$$$$\begin{equation}
+\int_{X}\overline{u(X) \otimes u^*(X')}\phi(X')dX'=\lambda \phi(X).
+\end{equation}$$$$\begin{equation*}
+R(X,X')=\overline{u(X) \otimes u^*(X')}
+\end{equation*}$$&lt;p>
+is the correlation tensor in two points.
+The classical method consists in replacing the mean $\overline{(\cdot)}$ by an average over the parameter of interest. On the contrary, the snapshots POD replaces the mean as a space mean over the spatial domain $\Omega$.&lt;/p>
+$$\begin{equation}
+\mathcal{R}\phi=\lambda\phi.
+\end{equation}$$$$\frac{1}{Ntrain}\sum_{k=1}^{Ntrain} (u_i,u_k) \Phi_k=\lambda \Phi_i,$$&lt;p>
+where $\Phi_i=\sum_{k=1}^{Ntrain} a_k^i u_k, \ i=1,\dots,N.$&lt;/p>
+$$\begin{align} (\mathcal{R}\Phi,\Phi)&amp;=\int_X\int_X R(X,X')\Phi(X')dX' \cdot \Phi^*(X)dX, \nonumber \\
+&amp;=\int_X\int_{X} \overline{u(X) \otimes u^*(X')}\Phi(X')dX' \cdot\Phi^*(X)dX, \nonumber \\
+&amp;=\overline{\int_{X} u(X) \cdot \Phi^*(X) dX \int_{X} u^*(X')\cdot\Phi(X')dX'}, \nonumber \\
+&amp;=\overline{\lVert{(u,\Phi)}\rVert^2} \geq 0. \nonumber \end{align}$$&lt;p>
+In the same manner, we can show that $(\mathcal{R}\Phi,\Psi)=(\Phi,\mathcal{R}\Psi)$ for all $(\Psi,\Phi)\in [L^2(\Omega \times \mathcal{G})]^2$.&lt;/p>
+$$\begin{equation}
+\int_{X}R(X,X')\Phi_n(X')dX'=\lambda^n \Phi_n(X),
+\end{equation}$$&lt;p>As a consequence, there exists a countable family of solutions $\{\lambda^n,\Phi_n\}$ to equation (8) which represent the eigenvalues and the POD eigenvectors of order $n=1,\dots,+\infty$.
+The $(\Phi_n)_{n=1,\dots,+\infty}$ are orthogonal (and we can normalize them), and the eigenvalues are all positives.&lt;/p>
+$$\begin{equation}
+u^N(X)=\overset{N}{\underset{n=1}{\sum}}a_n\Phi_n(X),
+\end{equation}$$$$\begin{equation}
+a_n=\int_{\Omega} u \Phi_n(x),
+\end{equation}$$$$E(\Phi_1,\dots,\Phi_N)=\sum_{i=1}^{Ntrain} \lVert u_i - u_i^N \rVert_2^2=\sum_{i=N+1}^{Ntrain} \lambda_i.$$$$\begin{equation}
+I(N)=\frac{\overset{N}{\underset{k=1}{\sum}}\lambda_k}{\overset{N_{train}}{\underset{i=1}{\sum}}\lambda_i}.
+\end{equation}
+$$&lt;ul>
+&lt;li>
+&lt;h4 id="offline-algorithm">Offline algorithm&lt;/h4>
+&lt;/li>
+&lt;/ul>
+$$\begin{equation*}
+\Phi_i=\overset{Ntrain}{\underset{k=1}{\sum}}a_i^k u_k, i=1,\dots,N
+\end{equation*}$$$$\begin{equation}
+\frac{1}{Ntrain}\overset{Ntrain}{\underset{k=1}{\sum}}(u_i,u_k)\ \Phi_k=\lambda \Phi_i, i=1,\dots,Ntrain.
+\end{equation}$$$$\begin{equation}
+\frac{1}{Ntrain} \overset{Ntrain}{\underset{k=1}{\sum}}(u_i,u_k) a_k^i=\lambda a_i^i,\quad \forall i=1, \dots, Ntrain.
+\end{equation}$$&lt;p>Let us now describe the algorithm in detail:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>The first step consists in solving numerically the equations of the problem for several training parameters.
+At the end of this step, we obtain a vector of snapshots $(u_h^1,\dots,u^{Ntrain}_h)$, where $h$ corresponds to the mesh size. For several reasons, it is more convenient to work with the fluctuations. We decompose the snapshots by one average over the parameters, denoted $u_{h,m}$, and by one fluctuation part written $u_{h,f}$ and we will estimate the POD modes with the fluctuations.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Then, we calculate the correlation matrix $C_{i,j}=\int_{\Omega} u_{h,f}^i\cdot u_{h,f}^j$, and we solve the $Ntrain \times Ntrain$ eigenvalue problem: $C v_h^n=\lambda_n {I}_d v_h^n$, for $n=1...Ntrain$, where $v_h^n=(a_{h,1}^n,\dots,a_{h,Ntrain}^n)$.&lt;/p>
+&lt;/li>
+&lt;li>
+$$\begin{equation*}
+\Phi_h^i=\sum_{j=1}^{Ntrain}a_{h,i}^j u_{h,f}^j, \forall i=1,...,N,
+\end{equation*}$$$$ and we normalize them
+\begin{equation*}
+\Phi_h^i=\frac{\Phi_h^i}{\lVert{\Phi_h^i}\rVert} (\mathrm{which \ is \ equivalent \ to \ dividing \ by \ }\sqrt{\lambda_i}). \end{equation*}$$$$\begin{equation*}
+\Phi_h^i=\Phi_h^i-\sum_{j=1}^{i-1} (\Phi_h^i,\Phi_h^j)\Phi_h^j.\end{equation*}$$&lt;p>
+The number $N$ of functions in the POD basis is chosen, such that $N$ remains small and $I(N)=\frac{\underset{k=1}{\overset{N}{\sum}}\lambda_k}{\underset{k=1}{\overset{Ntrain}{\sum}}\lambda_k}$ is close to $1$.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;h4 id="online-algorithm-pod-galerkin-projection-on-the-reduced-model">Online algorithm (POD-Galerkin Projection on the reduced model)&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;p>During the last step of the offline stage, the RB $(\Phi_h^i)_{i=1,...,N} \in \mathbf{V}_h^N \subset \mathbf{V}_{div}=\{v \in \mathbf{V}_h: \ \nabla.v=0 \}$ is generated. To predict the velocity $u$ for a new parameter $\nu$, a standard method consists in using a Galerkin projection onto this RB.&lt;/p>
+&lt;p>This stage is much faster than the execution of HF codes. The assembling reduced order matrices can be computed offline, and therefore only the new problem with these matrices needs to be solved during the online phase.
+In what follows, the Galerkin-projection for the velocity field does not contain the pressure field. Indeed, in our model problem, we only use the ROM to derived an approximation on the velocity in the reduced space $ \mathbf{V}_h^N$, since here the basis functions satisfy both the boundary conditions and the divergence-free constrain of the continuity equation.&lt;/p>
+&lt;p>Having reduced bases $(\Phi_i)_{i=1,\dots,N}$ for the velocity and $(\Psi_i)_{i=1,\dots,N}$ for the pressure (but we will see that there is no need to compute this RB), we may complete the offline part by assembling the new matrices of our problem:&lt;/p>
+$$\begin{equation*}
+\nu (\nabla u, \nabla v) + ((u \cdot \nabla) u,v) - (p, \nabla \cdot v) - (q, \nabla \cdot u) + 10^{-10} (p, q) =0, \textrm{in } \Omega,
+\end{equation*}$$&lt;p> we replace them by $(\overline{u}+ \sum_{j=1}^N \alpha^k_j \Phi_j,\overline{p} + \sum_{j=1}^N \beta^k_j \Psi_j)$ and $(v,q)$ by $(\Phi_i,\Psi_i)$. Thus, we get:&lt;/p>
+$$\begin{align*}
+&amp; \nu (\nabla \overline{u}, \nabla \Phi_i) + \nu ( \sum_{j=1}^N \alpha^k_j \nabla \Phi_j, \nabla \Phi_i)\\
+&amp; \quad \quad \quad + (\overline{u} \cdot \nabla \overline{u},\Phi_i) + (\overline{u} \cdot \sum_{j=1}^N \alpha^k_j \nabla \Phi_j,\Phi_i) + (\sum_{j=1}^N \alpha^{k}_j \Phi_j \cdot \nabla \overline{u},\Phi_i) + (\sum_{r=1}^N \alpha^{k-1}_r \Phi_r \cdot \sum_{j=1}^N \alpha^k_j \nabla \Phi_j,\Phi_i) \\
+&amp; \quad \quad \quad - (\overline{p}, \nabla \cdot \Phi_i) - (\sum_{j=1}^N \beta^k_j \Psi_j, \nabla \cdot \Phi_i)- (\Psi_i, \nabla \cdot \overline{u}) - (\Psi_i, \sum_{j=1}^N \alpha^k_j \nabla \cdot \Phi_j) + 10^{-10} (\overline{p}, \Psi_i) + 10^{-10} (\sum_{j=1}^N \beta^k_j \Psi_j, \Psi_i) =0, \textrm{in } \Omega.
+\end{align*}$$$$\begin{equation*}
+\nu (\nabla \overline{u}, \nabla \Phi_i) + \nu \sum_{j=1}^N \alpha^k_j ( \nabla \Phi_j, \nabla \Phi_i)+(\overline{u} \cdot \nabla \overline{u},\Phi_i) + \sum_{j=1}^N \alpha^k_j (\overline{u} \cdot \nabla \Phi_j,\Phi_i) + \sum_{j=1}^N \alpha^{k}_j ( \Phi_j \cdot \nabla \overline{u},\Phi_i) + \sum_{j=1}^N \sum_{r=1}^N \alpha^k_j \alpha^{k-1}_r (\Phi_r \cdot \nabla \Phi_j,\Phi_i) =0, \textrm{in } \Omega.
+\end{equation*}$$&lt;p>
+We remark that we do not need to generate the reduced basis for the pressure, and that we obtain three kind of terms:&lt;/p>
+&lt;ul>
+&lt;li>the ones that do not depend on the coefficients $\alpha$,&lt;/li>
+&lt;li>the ones that depend on the coefficients $\alpha^k$,&lt;/li>
+&lt;li>and one term that depends on the $\alpha^k$ and on the $\alpha^{k-1}$.&lt;/li>
+&lt;/ul>
+$$\begin{equation}
+\mathcal{A}_i + \sum_{j=1}^N \mathcal{B}_{ij} \alpha^k_j + \sum_{j=1}^N \sum_{r=1}^N \mathcal{C}_{ijr} \alpha^k_j \alpha^{k-1}_r =0,
+\end{equation}$$$$\begin{equation*}
+\mathcal{A}_i = \underbrace{\nu (\nabla \overline{u}, \nabla \Phi_i)}_{A1} + \underbrace{(\overline{u} \cdot \nabla \overline{u},\Phi_i)}_{A2}, \textrm { and } \mathcal{B}_{ij} = \underbrace{\nu ( \nabla \Phi_j, \nabla \Phi_i)}_{B1} + \underbrace{(\overline{u} \cdot \nabla \Phi_j,\Phi_i)}_{B2} + \underbrace{( \Phi_j \cdot \nabla \overline{u},\Phi_i)}_{B3} \textrm{ and }\mathcal{C}_{ijr} =( \Phi_r \cdot \nabla \Phi_j,\Phi_i).
+\end{equation*}$$$$\begin{equation*}
+M_{ij}=\mathcal{B}_{ij}+\sum_{k=1}^N \mathcal{C}_{ijl} \alpha^{k-1}_l
+\end{equation*}$$$$\begin{equation*}
+b_i=\mathcal{A}_i,
+\end{equation*}$$$$\begin{equation*}
+\mathbf{M} \alpha^k=\mathbf{b},
+\end{equation*}$$$$\begin{equation*}
+u_h(\nu)\simeq u_{h,m}+\sum_{j=1}^N \alpha_j \Phi_h^j.
+\end{equation*}$$&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;/ul></description></item><item><title>POD-Interpolation</title><link>https://ReducedBasis.github.io/docs/podi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://ReducedBasis.github.io/docs/podi/</guid><description>&lt;p>The PODI (POD+Interpolation) method is a non-intrusive version of the Galerkin-POD.&lt;/p>
+&lt;p>The offline part that creates the $N$ reduced basis functions remains the same.&lt;/p>
+&lt;p>Then, a further step is added. It consists in computing the reduced coefficients for all snapshots within a training set of parameters $\mathcal{G}_{Ntrain} \subset \mathcal{G}$.&lt;/p>
+&lt;p>We denote by $\alpha_i(\mu_k),i = 1,...,N, k = 1,...,Ntrain$ these coefficients. We obtain $Ntrain$ pairs $(\mu_k,\alpha (\mu_k))$, where $\alpha(\mu_k) \in \mathbb{R}^N$.
+Thanks to an interpolation/regression, the function that maps the input parameters $\mu_k$ to the coefficients can be reconstructed. This function is then used during the online stage to find the interpolated new coefficients for a new given parameter $\mu \in \mathcal{G}$ and to approach the high-dimensional solution. Different methods of interpolation might be employed. A prior sensitivity analysis of the function of interest with respect to the parameters can also be done to enhance the results. This preprocessing phase corresponds to what is called &amp;ldquo;the active subspaces property&amp;rdquo;.&lt;/p>
+&lt;h2 id="offline">Offline&lt;/h2>
+&lt;p>A POD procedure (visit the offline part of the POD-Galerkin
+&lt;/p>
+&lt;h2 id="online">Online&lt;/h2>
+&lt;p>An interpolation of the reduced coefficients&lt;/p>
+&lt;h2 id="codes">Codes:&lt;/h2>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;/ul></description></item><item><title>EIM</title><link>https://ReducedBasis.github.io/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://ReducedBasis.github.io/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) is used with the POD-Galerkin to obtain an affine decomposition on the parameter.&lt;/p>
+&lt;p>Indeed, as explained in the Galerkin-POD section (
+), we need an affine decomposition with respects to the parameter, then the parameter-independent terms are computed offline, making the online computation faster.&lt;/p>
+&lt;p>The EIM build a linear combination of fully determined solutions from basis functions $(q_i)_{i=1,...,M}$ depending on some interpolating points (called &amp;ldquo;magic points&amp;rdquo;) and some values $(\alpha_i)_{i=1,...,M}$ relying on certain instances of the parameter $\nu$, selected within the algorithm.
+Let us introduce the method with the following example:&lt;/p>
+&lt;p>Consider a function&lt;/p>
+$$ g(x,\nu)= \frac1{\sqrt{(x_1-\nu_1)^2+(y_1-\nu_2)}},$$&lt;p>with $x=(x_1,x_2)$ and $\nu=(\nu_1,\nu_2)$.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;h4 id="offline">&amp;ldquo;OFFLINE&amp;rdquo;&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;p>The first chosen parameter $\nu^1$ is the one that maximizes $g$ on norm $\mathcal{L}^{\infty}$ (we want to retrieve most information on $g$ with few points) and the associated magic point $x^1$ is the point that gives the most information on $g(\cdot,\nu^1)$ i.e. which maximizes its modulus.&lt;/p>
+&lt;p>Then the first basis function is $q_1(\cdot) = \frac{g(\cdot,\nu^1)}{g(x^1, \nu^1)}$. &lt;br>
+We can then find $\alpha_1$ as the coefficient corresponding to this basis function:&lt;/p>
+&lt;p>We compute for each training parameters $\nu \in \mathcal{G}$ the real $G$ such that $G=g(x^1,\nu)$ and then we solve the problem $Q \alpha^1(\nu)=G$ where $Q$ at this initialization step is just $q_1(x^1)$.&lt;/p>
+&lt;p>Then, we find recursively the $M$ basis functions with the following interpolation problem&lt;/p>
+$$ \forall 1 \leq i \leq M-1,\ \mathcal{I}_{M-1}[g](x^i)= g(x^i),$$$$\mathcal{I}_{M-1}[g]=\sum_{j=1}^{M-1} \alpha_j^{M-1} q_j.$$&lt;ul>
+&lt;li>
+&lt;h4 id="-online-">&amp;quot; ONLINE &amp;quot;&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;p>Now we are interested by a new parameter $\nu^{target}$.
+To obtain the linear decomposition, we solve a reduced problem from the previously computed basis functions and with the magic points (see details in the Python notebook).&lt;/p>
+$$ g^M(x,\nu^{target})=\sum_{i=1}^M \alpha(\nu^{target}) q(x). $$&lt;p>There exists a generalized form of this method (GEIM) and a discrete version named DEIM. The GEIM replaces the $M$ pointwise evaluations used by the EIM by general measures. In the presence of measurement noise, a stabilization of the method can be employed.&lt;/p>
+&lt;h2 id="codes">Codes:&lt;/h2>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;/li>
+&lt;/ul></description></item><item><title>NIRB 2-grid</title><link>https://ReducedBasis.github.io/docs/nirb-2grid/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://ReducedBasis.github.io/docs/nirb-2grid/</guid><description>&lt;h4 id="description">Description&lt;/h4>
+&lt;p>Offline-Online Decomposition:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>A non-intrusive reduced basis method&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A two-grid finite element/finite volume scheme&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A user-friendly reduced basis method to reduce computational cost of CFD simulations.&lt;/p>
+&lt;/li>
+&lt;/ul>
+$$ u_{new}=\underset{i=1}{\overset{N}{\sum}} (u_H(\mu), \Phi_i)\Phi_i(x),$$&lt;p>
+where $(\cdot,\cdot)$ is the $L^2$ inner product, $(\Phi_i)_{i=1}^N$ corresponds to our reduced basis computed on the fine mesh, and $u_H(\mu)$ to a coarser solution generated from a new parameter of interest.&lt;/p>
+&lt;h3 id="offline">Offline&lt;/h3>
+&lt;p>A Greedy or POD procedure;&lt;/p>
+&lt;h3 id="online">Online&lt;/h3>
+&lt;p>Computation of a coarse solution;&lt;/p>
+&lt;ul>
+&lt;li>rectification of the coefficients&lt;/li>
+&lt;/ul>
+&lt;h2 id="codes">Codes:&lt;/h2>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;h2 id="details">Details&lt;/h2>
+&lt;p>The variable parameter is denoted $\mu$.
+Let $\Omega$ be a bounded domain in $\mathbb{R}^d$, with $d \leq 3$ and let $u_h(\mu)$ be the solution approximation computed on a fine mesh $\mathcal{T}_h$, with a classical method, and respectively $u_H(\mu)$ be the solution approximation computed on the coarse mesh $\mathcal{T}_H$.&lt;/p>
+&lt;p>The fine grid is needed for the reduced basis generation, and the other one to roughly approximate the solution. The implementation has two main steps:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>First, the RB functions are prepared in an &amp;ldquo;offline&amp;rdquo; stage with a fine mesh. It involves a greedy algorithm or a POD procedure. This part is costly in time, but only executed once, as for other RBM.
+At the end of this stage, we obtain $N$ $L^2$-orthonormalized basis functions $(\Phi_i^h)_{i=1,\dots,N}$.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Then, a coarse approximation of the solution, for the new parameter $\mu$ we are interested in, is computed &amp;ldquo;online&amp;rdquo;.
+We denote this coarse solution $u_H(\mu)$. This rough approximation is not of sufficient precision but is calculated with a smaller number of degrees of freedom compared to the fine mesh ones.
+It is used as a cheap surrogate of the optimal coefficients
+$ \alpha_i^h(\mu)=\int_{\Omega} u_h(\mu) \cdot \Phi_i^h\ dx.$
+Reduced basis post-processing then makes it possible to notably improve the precision by projection and rectification on the reduced basis, within a very short runtime. The classical NIRB approximation is given by
+$u_{Hh}^N(\mu):= \overset{N}{\underset{i=1}{\sum}}(u_H(\mu),\Phi_i^h)\ \Phi_i^h \in X_h^N.$&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>We enhance this approximation with a &amp;ldquo;rectification post-treatment&amp;rdquo;:&lt;/p>
+&lt;p>The main idea of its strategy consists in recovering the accuracy of the approximation given by the optimal coefficients without sacrificing on the computational complexity.
+During the offline stage, after the fine snapshots generation, for the same parameter values, the corresponding coarse snapshots are computed.&lt;/p>
+&lt;p>Thus, we introduce the fine and coarse coefficients&lt;/p>
+$$\begin{equation*}
+\alpha_i^h(\mu)=\int_{\Omega} u_h(\mu) \cdot \Phi_i^h\ dx \textrm{ and } \alpha_i^H(\mu)=\int_{\Omega} u_H(\mu) \cdot \Phi_i^h\ dx.
+\end{equation*}$$&lt;p>The purpose is to create a rectification matrix that allows us to pass from the coarse coefficients to the fine ones. This implies that if the true solution is in the reduced space, then the NIRB method will give this true solution.
+We consider $Ntrain$ training snapshots in $\mathcal{G}$ (the ones we used to build our reduced basis).
+We define $\mathbf{A}\in \mathbb{R}^{Ntrain \times N}$ the matrix of the coarse coefficients and $\mathbf{B} \in \mathbb{R}^{Ntrain \times N}$ the one constructed from the fine coefficients such that&lt;/p>
+$$\begin{equation*}
+\forall i=1,\cdots,N, \textrm{ and } \forall \mu_k \in \mathcal{G}, \quad A_{k,i}=\alpha_i^H(\mu_k),\quad \textrm{and } B_{k,i}=\alpha_i^h(\mu_k).
+\end{equation*}$$&lt;p>The approach is based on a regularized least-square method. Without regularization, its purpose is to minimize the error between the projection of the rectified approximation onto the basis and the optimal approximation as a function of the rectification matrix. Thus, let us introduce the rectification matrix $\mathbf{R}=(R_{i,j})_{1\leq i,j \leq N} \in \mathbb{R}^{N \times N}: X_h^N \to X_h^N$.&lt;/p>
+&lt;p>The rectification step aims to find $\mathbf{R}$ minimizing&lt;/p>
+$$\begin{equation*}
+\lVert \overset{N}{\underset{i=1}{\sum}} \alpha_i^h(\mu_k) \Phi_i^h - \overset{N}{\underset{i=1}{\sum}} \overset{N}{\underset{j=1}{\sum}} R_{i,j} \alpha_j^H(\mu_k) \Phi_i^h \rVert^2,\quad \forall k=1,\dots,Ntrain.
+\end{equation*}$$&lt;p>With the $L^2$ orthonormalization of the RB functions, it is equivalent to minimize&lt;/p>
+$$\begin{equation*}
+\lvert \alpha_i^h(\mu_k)- \overset{N}{\underset{j=1}{\sum}} \ R_{i,j}\ \alpha_j^H(\mu_k) \rvert^2, \quad \forall k=1,\dots,Ntrain.
+\end{equation*}$$&lt;p>as a function of $\mathbf{R}$.
+Thus, it consists in looking for $\mathbf{R}$ minimizing the cost functions&lt;/p>
+$$\begin{equation*}
+\lVert \mathbf{A}\mathbf{R}_i-\mathbf{B}_i \rVert^2_{2},\quad i=1,\cdots,N.
+\end{equation*}$$&lt;p>We use a Tikhonov regularization that consists in promoting solutions of such problems with small norms.
+Thus it becomes&lt;/p>
+$$\begin{equation*}
+\lVert \mathbf{A}\mathbf{R}_i-\mathbf{B}_i \rVert^2_{2}+\lambda \lVert \mathbf{R}_i \rVert_2^2,\quad i=1,\cdots,N,
+\end{equation*}$$&lt;p>where $\lambda$ is a regularization term.&lt;/p>
+&lt;p>The solution to this problem is the rectification matrix:&lt;/p>
+$$\begin{equation*}
+\mathbf{R}_i=(\mathbf{A}^T\mathbf{A}+\lambda \mathbf{I}_{N})^{-1}\mathbf{A}^T \mathbf{B}_i, \ i=1, \cdots,N,
+\end{equation*}$$&lt;p>Then, the NIRB approximation becomes&lt;/p>
+$$\begin{equation}
+Ru_{Hh}^N(\mu)=\overset{N}{\underset{i,j=1}{\sum}}\ R_{ij}\ \alpha_j^H(\mu)\ \Phi_i^h.
+\end{equation}$$&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;/ul></description></item><item><title>PBDW</title><link>https://ReducedBasis.github.io/docs/pbdw/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://ReducedBasis.github.io/docs/pbdw/</guid><description>&lt;p>Let us present one method that combines model order reduction and a data assimilation problem: the Parametrized-Background Data-Weak method (PBDW).
+We aim to approximate the true physical state $u_{true}$ by $u^{bk}+\eta$ where $\eta$ is an update correction of unmodeled physics, or unanticipated and non-parametric uncertainty (constructed from several observations), and $u^{bk}$ is an approximation obtained from a best-knowledge model.&lt;/p>
+&lt;h2 id="offline">Offline&lt;/h2>
+&lt;ul>
+&lt;li>A POD or Greedy procedure on a model with bias to build a reduced space $\mathcal{Z}_N$&lt;/li>
+&lt;li>Generation of observation reduced spaces $\mathcal{U}_M$ from true data&lt;/li>
+&lt;/ul>
+&lt;h2 id="online">Online&lt;/h2>
+&lt;p>A reduced problem to solve in order to find an approximation solution in the reduced-basis space $\mathcal{Z}_N \bigoplus \mathcal{U}_M$ based on projection-by-data.&lt;/p>
+&lt;h2 id="codes">Codes&lt;/h2>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;h2 id="details">Details:&lt;/h2>
+&lt;p>The PBDW formulation integrates a parameterized best-knowledge (bk) mathematical model $G^{bk,\mu}$ and $M$ experimental observations of the true field $u_{true}(\mu^{true})$ to improve the accuracy of its approximation, as well as any desired output $l_{out}(u_{true}(\mu^{true})) \in \mathbb{R}$ for a given output functional $l_{out}$.&lt;/p>
+$$ G^{bk,\mu}(u^{bk}(\mu)) = 0.$$$$ \mathcal{M}^{bk} = \{u^{bk}(\mu) : \mu \in \mathcal{P}^{bk}\}.$$&lt;ul>
+&lt;li>We first compute a reduced basis of our bk model:
+We introduce a sequence of background spaces that reflect our (prior) best knowledge (e.g. with a POD procedure)
+$$\mathcal{Z}_1 \subset \dots \subset \mathcal{Z}_{N} \subset \mathcal{U}, $$ generated from different snapshots of the bk solution manifold.
+Our goal is to choose the background spaces such that
+$$\underset{N \to \infty}{\textrm{lim}}\ \underset{w \in \mathcal{Z}_N}{\textrm{inf}} \lVert u_{true}(\mu)-w \rVert \leq \varepsilon_{\mathcal{Z}}, \forall \mu \in \mathcal{P}^{bk}, $$
+where $\varepsilon_{\mathcal{Z}}$ is a small tolerance value.
+In other words, we want that our bk model represents our data observations well.&lt;/li>
+&lt;/ul>
+&lt;p>To sum up, we now have a bk model with a bias leading to the $\mathcal{Z}_n$ sequence.
+Of course, we also want to improve our reduced approximation with the knowledge of the true observation measures, that can possibly be noisy.&lt;/p>
+&lt;ul>
+&lt;li>We thus define the functions that will describe our measures (we might have access to partial data observations only).
+Given a parameter $\mu^{true}\in \mathcal{P}^{bk}$, we assume that our measures $y^{obs}(\mu^{true}) \in \mathbb{C}^M$ is of the form $$\forall m=1,\dots,M, y_m^{obs}=l^0_m(u_{true}(\mu^{true})).$$
+Here $y_m^{obs}(\mu^{true})$ is the value of the $m$-th observation and $l_m^0 \in \mathcal{U}'$.
+These observation functionals model the particular transducer used in data acquisition. For instance, if the transducer measures a local state value, we may model the transducer $l^0_m$ by a Gaussian convolution.
+We then associate with each observation functional $l_m^0 \in \mathcal{U}'$ an observation function
+$$\forall m=1,\dots,M, \ q_m = R_{\mathcal{U}} l^0_m,$$
+which is the Riesz representation of the functional. It allows us to introduce hierarchical observable spaces,
+$$ \forall M=1,\dots,M_{max}, \ \mathcal{U}_M= \mathrm{span} \{q_m\}_{m=1}^M. $$&lt;/li>
+&lt;/ul>
+&lt;p>Since $(u_{true}(\mu^{true}),q_m) = (u_{true}(\mu^{true}),R_{\mathcal{U}} l^0_m )=l^0_m(u_{true}(\mu^{true}))$,
+it follows that, for any $q \in \mathcal{U}_M$, $(u_{true}(\mu^{true}),q)=(u_{true}(\mu^{true}),\sum_{m=1}^M \alpha_m q_m )= \sum_{m=1}^M \alpha_m l^0_m(u_{true}(\mu^{true}))$, hence $(u_{true}(\mu^{true}),q)$ is a weighted sum of experimental observations.&lt;/p>
+&lt;ul>
+&lt;li>We now have two kind of reduced bases: the reduced basis $(\Phi_i)_{i,\dots,N}$ that represents the spaces $\mathcal{Z}_N$ and the reduced basis $(q_i)_{i=1,\dots,M}$ that represents the observation spaces $\mathcal{U}_M$.&lt;/li>
+&lt;/ul>
+&lt;p>We can now proceed with the PBDW estimation statement:&lt;/p>
+&lt;p>given a parameter $\mu^{true} \in \mathcal{P}^{bk}$, find $(u^*_{N,M}(\mu^{true}) \in \mathcal{U},z^*_{N,M}(\mu^{true}) \in \mathcal{Z}_N, \eta^*_{N,M}(\mu^{true}) \in \mathcal{U}_M)$ such that&lt;/p>
+$$\begin{equation}(u^*_{N,M}(\mu^{true}) ,z^*_{N,M}(\mu^{true}) , \eta^*_{N,M}(\mu^{true})) =\underset{\eta_{M,N} \in \mathcal{U}}{\underset{z_{N,M}\in \mathcal{Z}_N}{\underset{u_{N,M} \in \mathcal{U}}{\textrm{arginf}}}} \ \lVert \eta_{N,M} \rVert^2
+\end{equation}$$$$ \begin{align}
+&amp;(u_{N,M},v)=(\eta_{N,M},v)+(z_{N,M},v), \ \forall v\in \mathcal{U},\\
+&amp; (u_{N,M},\Phi)=(u_{true}(\mu^{true}),\Phi), \ \forall \Phi \in \mathcal{U}_M.
+\end{align}
+$$&lt;p>The first equation (2) describes that our reduced approximation $u_{N,M}$ is equal to the sum of the reduced coefficients $z_{N,M}$ with the reduced corrections $\eta_{N,M}$.
+The second equation (3) just tells us that the measures must coincide with our approximation. Of course, the arginf (1) states that we want to have as small corrections as possible.&lt;/p>
+$$\mathcal{L}(u^*,z^*,\eta^*,v^*,\Phi^*)=\frac12 \lVert \eta^* \rVert^2 + (u^* - \eta^* -z^*,v) + (u^*-u_{true}, \Phi), $$&lt;p> where $v^* \in \mathcal{U}$ and $\Phi^* \in \mathcal{U}$ are the Lagrange multipliers. From its partial derivatives, we then obtain the associated reduced Euler-Lagrange equation as a saddle problem (see
+eq (3) for details):&lt;/p>
+&lt;p>Find $(z^*_{N,M}(\mu^{true}) \in \mathcal{Z}_N, \eta^*_{N,M}(\mu^{true}) \in \mathcal{U}_M)$ such that&lt;/p>
+$$ \begin{align}
+&amp;(\eta^*_{N,M}(\mu^{true}),q)+(z^*_{N,M}(\mu^{true}),q)=(u_{true}(\mu^{true}),q), \ \forall q\in \mathcal{U}_M,\\
+&amp; (\eta^*_{N,M}(\mu^{true}),p)=0, \ \forall p \in \mathcal{Z}_N.
+\end{align}
+$$$$ u^*_{N,M}(\mu^{true})=\eta^*_{N,M}(\mu^{true})+z^*_{N,M}(\mu^{true}).$$&lt;p>We now state the algebraic form of the PBDW problem:
+Since any element of $z \in \mathcal{Z}_N$ can be expressed as $z=\sum_{n=1}^N z_n \Phi_n$ and any element $\eta \in \mathcal{U}_M$ can be expressed as $\eta=\sum_{m=1}^M \eta_m q_m$, we can easily derive the algebraic PBDW system from (4)-(5):&lt;/p>
+&lt;ul>
+&lt;li>Offline part: After generating our reduced bases, we compute the matrices $A$ and $B$ such that $(A)_{i,j}=(q_i,q_j)$ and $(B)_{i,j}=(\Phi_j,q_i)$ and then the global matrix is given by $K= \begin{pmatrix} A &amp; B \\
+B^T &amp; 0 \end{pmatrix}$.&lt;/li>
+&lt;li>Online part: Then, for a new parameter $\mu^{true}$, we compute $\forall m=1,\dots,M, y_m^{obs}=l^0_m(u_{true}(\mu^{true})),$ and then we solve $\begin{pmatrix} \eta_M \\ z_N \end{pmatrix} = K^{-1} \begin{pmatrix} y^{obs} \\ 0 \end{pmatrix}$ and we approximate $u_{true}(\mu^{true})$ by $$u^*_{N,M}=\sum_{i=1}^M (\eta_{N,M})_i \ q_i +\sum_{i=1}^N (z_{N,M})_i \ \Phi_i. $$&lt;/li>
+&lt;/ul>
+&lt;p>Remark:
+The PBDW framework may accommodate any observation functional that is consistent with the data-acquisition procedure. In the notebook code, we focus on localized observations. As noted, for localized observations using a given gaussian transducer, an adequat location of the centers $(x_m)_{m=1}^M$ is essential to determine the space $\mathcal{U}_M$. In fact, the apriori error between the true solution and the reduced approximation is related to the stability constant $\beta_{N,M}=\underset{w \in \mathcal{Z}_N}{\textrm{inf}} \underset{v \in \mathcal{U}_M}{\textrm{sup}} \frac{(w,v)}{\lVert w \rVert \lVert v\rVert}$ that we want to maximize. In practice, we may select the observation functionals (and more specifically the observation centers) using several different processes:&lt;/p>
+&lt;ul>
+&lt;li>we might employ a uniform or random coverage of the domain,&lt;/li>
+&lt;li>we might use a Generalized Emperical Interpolation Method (GEIM),&lt;/li>
+&lt;li>or we could use a Greedy stability maximization (called SGreedy) as in the paper &amp;ldquo;PBDW method for state estimation: error analysis for noisy data and nonlinear formulation&amp;rdquo; (
+) which choose the reduced spaces for the bk model and for the observation spaces simultaneously while maximizing the stability constant.&lt;/li>
+&lt;/ul>
+&lt;p>In the notebook codes, we use a POD algorithm to compute the bk reduced space and a uniform coarser mesh to select the sensors localization.&lt;/p>
+&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;/ul></description></item></channel></rss>
