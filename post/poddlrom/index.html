@@ -76,13 +76,11 @@ The idea is to first compress the training solutions with a POD before relying o
 </span></span></code></pre></div><pre><code>2025-04-15 13:49:21.531644: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 </code></pre><h2 id=1-an-unsteady-advectiondiffusionreaction-equation>1) An unsteady advection–diffusion–reaction equation:</h2><h1 id=heading></h1><p>We are going to use in this example an unsteady advection-diffusion-reaction problem with the Finite Element Method (FEM), which consists in
-solving on a unit square (denoted $\Omega$) the following equations:
-\begin{align}
-&\partial_t u - \nabla \cdot(\mu_1 \nabla u) + b(t;\mu)\cdot \nabla u + c u =f(\mu_3,\mu_4), \textrm{ in } \Omega \times (0,T),\
-& \mu_1 \nabla u \cdot n=0, \textrm{ on } \partial \Omega \times (0,T),\
-& u(0)=0, \textrm{ in } \Omega,\
-\end{align}
-Here, $\mu=(\mu_1,\mu_2,\mu_3,\mu_4)$ is our parameter of interest.
+solving on a unit square (denoted $\Omega$) the following equations:</p>$$\begin{align*}
+&\partial_t u - \nabla \cdot(\mu_1 \nabla u) + b(t;\mu)\cdot \nabla u + c u =f(\mu_3,\mu_4), \textrm{ in } \Omega \times (0,T),\\
+& \mu_1 \nabla u \cdot n=0, \textrm{ on } \partial \Omega \times (0,T),\\
+& u(0)=0, \textrm{ in } \Omega,\\
+\end{align*}$$<p>Here, $\mu=(\mu_1,\mu_2,\mu_3,\mu_4)$ is our parameter of interest.
 We employ P1 elements with a backward time scheme of order 2.</p><p>The parameter set is given by $[0.002, 0.005] × [30, 70] × [0.4, 0.6]^2$</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=s2>&#34;&#34;&#34; First we define a mesh for the unit square with the boundary decomposition &#34;&#34;&#34;</span>
 </span></span><span class=line><span class=cl><span class=n>mesh</span><span class=o>=</span> <span class=n>skfem</span><span class=o>.</span><span class=n>MeshTri</span><span class=p>()</span><span class=o>.</span><span class=n>refined</span><span class=p>(</span><span class=mi>6</span><span class=p>)</span><span class=o>.</span><span class=n>with_boundaries</span><span class=p>(</span>
 </span></span><span class=line><span class=cl>        <span class=p>{</span>                                                                                                                                

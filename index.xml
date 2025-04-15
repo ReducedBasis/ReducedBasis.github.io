@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Home | RBM Docs</title><link>https://reducedbasis.github.io/</link><atom:link href="https://reducedbasis.github.io/index.xml" rel="self" type="application/rss+xml"/><description>Home</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 24 Oct 2023 00:00:00 +0000</lastBuildDate><image><url>https://reducedbasis.github.io/media/icon_hu8177510199143947247.png</url><title>Home</title><link>https://reducedbasis.github.io/</link></image><item><title>POD-DL-ROM</title><link>https://reducedbasis.github.io/docs/poddlrom/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/poddlrom/</guid><description>&lt;p>The POD-DL-ROM is a technique that combines a classical Reduced Basis Method (RBM) with a Deep Learning-based Reduced Order Model (DL-ROM).
-The goal is to overcome different limitations shared by classical RBMs, mainly mitigating the Kolmogorov barrier to reducibility, i.e. deal with situations where the dimension of the reduced linear space is too large.
-DL-ROMs techniques learn in a non-intrusive way both the nonlinear trial manifold and the nonlinear dynamics as a function of the time coordinate and the parameters.
-It relies on deep neural networks.
-The first step consists in applying a Proper Orthogonal Decomposition (POD) to further reduce the costs of the offline stage of the algorithm.
+The goal is to overcome different limitations shared by classical RBMs, mainly mitigating the Kolmogorov barrier to reducibility, i.e. deal with situations where the dimension of the reduced linear space is too large.&lt;/p>
+&lt;p>DL-ROMs techniques learn in a non-intrusive way both the nonlinear trial manifold and the nonlinear dynamics as a function of the time coordinate and the parameters. It relies on deep neural networks.&lt;/p>
+&lt;p>The first step of the POD-DL-ROM consists in applying a Proper Orthogonal Decomposition (POD) to further reduce the costs of the offline stage of the algorithm, compared to DL-ROMs.
 This prior dimensionality reduction through a randomized singular value decomposition (rSVD) avoids to feed training data of large dimension $\mathcal{N}_h$ (even if the number of modes $N$ required for the POD is big, we assume here that $N &lt;&lt; \mathcal{N}_h$ where $\mathcal{N}_h$ denotes the number of degrees of freedom. Indeed, although extremely efficient at testing time, when evaluating the PDE solution for any new testing-parameter instance, DL-ROMs require an expensive training stage, because of the extremely large number of network parameters (weights/biases) to be estimated. When $N$ is large (i.e. when the dimension of the linear trial subspace becomes very large), this ROM technique shows efficient computational performances during both offline and online stages, compared to classical projection-based ROMs.&lt;/p>
-&lt;p>To sum up this ROM technique, a two-step dimensionality reduction is performed: first, POD (realized through rSVD) is applied on a set of High-Fidelity (HF) snapshots, then a DL-ROM is built to approximate the map between the parameters and the POD coordinates.&lt;/p>
-&lt;h2 id="offline">Offline&lt;/h2>
-&lt;p>A POD procedure (randomSVD)
-A Deep Learning-based Reduced Order Model through an encoder, a Deep Feedforward Neural Network (DFNN) and a decoder.&lt;/p>
-&lt;h2 id="online">Online&lt;/h2>
+&lt;p>To sum up this ROM technique, a two-step dimensionality reduction is performed: first, a POD (realized through rSVD) is applied on a set of High-Fidelity (HF) snapshots, then a DL-ROM is built to approximate the map between the parameters and the POD coordinates.&lt;/p>
+&lt;h3 id="offline">Offline&lt;/h3>
+&lt;ul>
+&lt;li>A POD procedure (randomSVD)&lt;/li>
+&lt;li>A Deep Learning-based Reduced Order Model through an encoder, a Deep Feedforward Neural Network (DFNN) and a decoder.&lt;/li>
+&lt;/ul>
+&lt;h3 id="online">Online&lt;/h3>
 &lt;p>An approximation is found with the DFNN and the decoder.&lt;/p>
 &lt;h2 id="codes">Codes:&lt;/h2>
 &lt;p>
@@ -39,9 +40,9 @@ We employ P1 elements with a backward time scheme of order 2.&lt;/p>
 &lt;h5 id="offline-stage">OFFLINE STAGE&lt;/h5>
 &lt;p>After the data compression with a rSVD, the training strategy consists in:&lt;/p>
 &lt;ul>
-&lt;li>1/ encoding the compressed solution with a CAE that goes from $\mathbb{R}^N \to \mathbb{R}^n$ with the dimension of the latent space $n$ as close as possible to the number of parameters ($n&lt;&lt;N$),&lt;/li>
-&lt;li>2/ learning to approximate the latent space with a DFNN,&lt;/li>
-&lt;li>3/ decoding this approximation to find the original solution.~&lt;/li>
+&lt;li>1/ encoding the compressed solution with a CAE that goes from $\mathbb{R}^N \to \mathbb{R}^n$ with the dimension of the latent space $n$ as close as possible to the number of parameters ($n &lt;&lt; N$),&lt;/li>
+&lt;li>2/ approximate the latent space with a DFNN,&lt;/li>
+&lt;li>3/ decoding this approximation to find the original solution.&lt;/li>
 &lt;/ul>
 &lt;p>Many algorithm parameters can be adapted to enhance the accuracy or to reduce the offline part runtimes (Number of training parameters, maximum iterations, learning rate, number of minibatches, latent space dimension, number of convolution filters &amp;hellip;)&lt;/p>
 &lt;p>See more details on the basic concepts of deep learning in Appendix A of &amp;ldquo;A Comprehensive Deep Learning-Based Approach to Reduced Order Modeling of Nonlinear Time-Dependent Parametrized PDEs&amp;rdquo;.&lt;/p>
@@ -5332,15 +5333,16 @@ $\mathbf{A} \Phi_i=\sigma \Psi_i$.&lt;/p>
 &lt;h3 id="random-svd-rsvd-and-fixed-rank-approximation-problem">Random SVD (rSVD) and fixed-rank approximation problem&lt;/h3>
 &lt;p>The dominant cost in the random SVD on the snapshot matrix $\mathbf{A}$ is in $O((2q+2)\cdot N\dot N_h\cdot Ntrain)$ if $N_h>Ntrain$.&lt;/p>
 &lt;p>The main idea is to construct a low-dimensional subspace that captures the action of the matrix $\mathbf{A}$.&lt;/p>
-&lt;p>To do so, we need to restrict $\mathbf{A}$ onto that subspace, i.e. to project $\mathbf{A} onto that space and to compute a standard factorization (SVD factorization). Indeed, the reduced basis for the range of $\mathbf{A}$ is approximated by operating a truncated SVD onto that smaller space, which is the key ingredient to lower the costs compared to other offline RB algorithms.&lt;/p>
+&lt;p>To do so, we need to restrict $\mathbf{A}$ onto that subspace, i.e. to project $\mathbf{A}$ onto that space and to compute a standard factorization (SVD factorization). Indeed, the reduced basis for the range of $\mathbf{A}$ is approximated by operating a truncated SVD onto that smaller space, which is the key ingredient to lower the costs compared to other offline RB algorithms.&lt;/p>
 $$\begin{equation*}
 \mathbf{A} \simeq \mathbf{Q} \mathbf{Q}^* \mathbf{A},
 \end{equation*}
 $$&lt;p>
 and such that $\mathbf{Q}^* \mathbf{Q}= \mathbf{I}$.&lt;/p>
+&lt;p>Indeed, we have&lt;/p>
 $$
 \begin{equation*}
-\mathbf{Q}^*\mathbf{A}-\mathbf{B})=0,
+\mathbf{Q}^*\mathbf{A}-\mathbf{B}=0,
 \end{equation*}
 $$$$
 \begin{equation*}
@@ -5350,9 +5352,11 @@ $$$$
 \begin{equation*}
 Q^* (\mathbf{A}-\mathbf{Q} \mathbf{Q}^* \mathbf{A})=0.
 \end{equation*}
-$$$$\begin{equation^*}
+$$&lt;p>Therefore $\mathbf{Q} \mathbf{Q}^*$ acts like a orthogonal projector and $\mathbf{Q} \mathbf{Q}^* \mathbf{A}$ is the best approximation of $\mathbf{A}$ in the space spanned by the columns of $\mathbf{Q}$.
+In other words, $\mathbf{Q} \mathbf{Q}^* \mathbf{A}$ is the orthogonal projection of $\mathbf{A}$ onto the range of $\mathbf{Q}$ and thus,&lt;/p>
+$$\begin{equation*}
 col(\mathbf{A}-\mathbf{Q} \mathbf{Q}^*\mathbf{A}) \perp Im(\mathbf{Q}.
-\end{equation^*}$$&lt;p>Of course, we want the columns of $\mathbf{Q}$ to be as small as possible. The dimension $N$ is sometimes called the numerical rank of the matrix.&lt;/p>
+\end{equation*}$$&lt;p>Of course, we want the columns of $\mathbf{Q}$ to be as small as possible. The dimension $N$ is sometimes called the numerical rank of the matrix.&lt;/p>
 $$
 \begin{equation*}
 \underset{rank(\mathbf{X}) \leq N}{\mathrm{min}} \lVert \mathbf{A}-\mathbf{X} \rVert = \sigma_{N+1},
@@ -5368,21 +5372,25 @@ where $\lVert \cdot \rVert$ refers to the spectral norm and $\sigma_{j=N+1}$ the
 &lt;p>we first generate a random matrix (usually Gaussian) $\Omega \in \mathbb{R}^{Nrain\times N}$.&lt;/p>
 &lt;/li>
 &lt;li>
-$$ \begin{equation*}
-\mathbf{Y}=\mathbf{A} \ \Omega.
-\end{equation*}$$$$\begin{equation*}
-\mathbf{Y}=\mathbf{A} \ \mathbf{A}^T \mathbf{Y},
-\end{equation*}
-$$&lt;p>
-and we orthonormalize $\mathbf{Y}$ if $q>2$.&lt;/p>
+&lt;p>Then $\mathbf{A}$ is projected onto the smaller space of size $Ntrain \times N$ thanks to $\Omega$, where $N$ is the number of modes:&lt;/p>
 &lt;/li>
 &lt;/ul>
+$$ \begin{equation*}
+\mathbf{Y}=\mathbf{A} \ \Omega.
+\end{equation*}$$&lt;p>If the singular spectrum of the input matrix decays slowly, we proceed with a orthonormalized power iteration processus (orthonormalization avoids round-off errors at each step).
+If the number of iterations $q$ is small (1 or 2), this orthonormalization is not required.
+At each step, we thus do&lt;/p>
+$$\begin{equation*}
+\mathbf{Y}=\mathbf{A} \ \mathbf{A}^T \mathbf{Y},
+\end{equation*}
+$$&lt;p>and we orthonormalize $\mathbf{Y}$ if $q>2$.&lt;/p>
+&lt;p>With a QR orthonormalization of $\mathbf{Y}$, we construct the reduced matrix $\mathbf{B} \in mathbb{R}^{N \times Ntrain} $ such that&lt;/p>
 $$ \mathbf{B}= \mathbf{Q}^T \mathbf{A}.
-$$$$
+$$&lt;p>Then we exploit a truncated SVD on $\mathbf{B}$ to generate the reduced basis of $\mathbf{A}$, denoted by $\mathcal{U}$:&lt;/p>
+$$
 \begin{equation*}
 \mathbf{U}=\mathbf{Q} \ \tilde{\mathbf{U}},
-\end{equation*}$$&lt;p>
-where $\tilde{\mathbf{U}}$ are the left singular vectors of $\mathbf{B}$.&lt;/p>
+\end{equation*}$$&lt;p>where $\tilde{\mathbf{U}}$ are the left singular vectors of $\mathbf{B}$.&lt;/p>
 &lt;p>The oversampling effect is detailed in Paragraph 1.3.2 of the paper &amp;ldquo;Finding structure with randomness: probabilistic algorithms for construncting approximate matrix decompositoins&amp;rdquo;.&lt;/p>
 &lt;h2 id="references">References&lt;/h2>
 &lt;ul>
@@ -5423,13 +5431,12 @@ To enable the following instructions: AVX2 FMA, in other operations, rebuild Ten
 &lt;h2 id="1-an-unsteady-advectiondiffusionreaction-equation">1) An unsteady advection–diffusion–reaction equation:&lt;/h2>
 &lt;h1 id="heading">&lt;/h1>
 &lt;p>We are going to use in this example an unsteady advection-diffusion-reaction problem with the Finite Element Method (FEM), which consists in
-solving on a unit square (denoted $\Omega$) the following equations:
-\begin{align}
-&amp;amp;\partial_t u - \nabla \cdot(\mu_1 \nabla u) + b(t;\mu)\cdot \nabla u + c u =f(\mu_3,\mu_4), \textrm{ in } \Omega \times (0,T),\
-&amp;amp; \mu_1 \nabla u \cdot n=0, \textrm{ on } \partial \Omega \times (0,T),\
-&amp;amp; u(0)=0, \textrm{ in } \Omega,\
-\end{align}
-Here, $\mu=(\mu_1,\mu_2,\mu_3,\mu_4)$ is our parameter of interest.
+solving on a unit square (denoted $\Omega$) the following equations:&lt;/p>
+$$\begin{align*}
+&amp;\partial_t u - \nabla \cdot(\mu_1 \nabla u) + b(t;\mu)\cdot \nabla u + c u =f(\mu_3,\mu_4), \textrm{ in } \Omega \times (0,T),\\
+&amp; \mu_1 \nabla u \cdot n=0, \textrm{ on } \partial \Omega \times (0,T),\\
+&amp; u(0)=0, \textrm{ in } \Omega,\\
+\end{align*}$$&lt;p>Here, $\mu=(\mu_1,\mu_2,\mu_3,\mu_4)$ is our parameter of interest.
 We employ P1 elements with a backward time scheme of order 2.&lt;/p>
 &lt;p>The parameter set is given by $[0.002, 0.005] × [30, 70] × [0.4, 0.6]^2$&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="s2">&amp;#34;&amp;#34;&amp;#34; First we define a mesh for the unit square with the boundary decomposition &amp;#34;&amp;#34;&amp;#34;&lt;/span>
