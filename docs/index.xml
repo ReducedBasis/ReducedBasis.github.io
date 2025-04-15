@@ -1,4 +1,70 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Introduction to RBM | RBM Docs</title><link>https://reducedbasis.github.io/docs/</link><atom:link href="https://reducedbasis.github.io/docs/index.xml" rel="self" type="application/rss+xml"/><description>Introduction to RBM</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><image><url>https://reducedbasis.github.io/media/icon_hu8177510199143947247.png</url><title>Introduction to RBM</title><link>https://reducedbasis.github.io/docs/</link></image><item><title>POD-Galerkin</title><link>https://reducedbasis.github.io/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Introduction to RBM | RBM Docs</title><link>https://reducedbasis.github.io/docs/</link><atom:link href="https://reducedbasis.github.io/docs/index.xml" rel="self" type="application/rss+xml"/><description>Introduction to RBM</description><generator>Hugo Blox Builder (https://hugoblox.com)</generator><language>en-us</language><image><url>https://reducedbasis.github.io/media/icon_hu8177510199143947247.png</url><title>Introduction to RBM</title><link>https://reducedbasis.github.io/docs/</link></image><item><title>POD-DL-ROM</title><link>https://reducedbasis.github.io/docs/poddlrom/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/poddlrom/</guid><description>&lt;p>The POD-DL-ROM is a technique that combines a classical Reduced Basis Method (RBM) with a Deep Learning-based Reduced Order Model (DL-ROM).
+The goal is to overcome different limitations shared by classical RBMs, mainly mitigating the Kolmogorov barrier to reducibility, i.e. deal with situations where the dimension of the reduced linear space is too large.
+DL-ROMs techniques learn in a non-intrusive way both the nonlinear trial manifold and the nonlinear dynamics as a function of the time coordinate and the parameters.
+It relies on deep neural networks.
+The first step consists in applying a Proper Orthogonal Decomposition (POD) to further reduce the costs of the offline stage of the algorithm.
+This prior dimensionality reduction through a randomized singular value decomposition (rSVD) avoids to feed training data of large dimension $\mathcal{N}_h$ (even if the number of modes $N$ required for the POD is big, we assume here that $N &lt;&lt; \mathcal{N}_h$ where $\mathcal{N}_h$ denotes the number of degrees of freedom. Indeed, although extremely efficient at testing time, when evaluating the PDE solution for any new testing-parameter instance, DL-ROMs require an expensive training stage, because of the extremely large number of network parameters (weights/biases) to be estimated. When $N$ is large (i.e. when the dimension of the linear trial subspace becomes very large), this ROM technique shows efficient computational performances during both offline and online stages, compared to classical projection-based ROMs.&lt;/p>
+&lt;p>To sum up this ROM technique, a two-step dimensionality reduction is performed: first, POD (realized through rSVD) is applied on a set of High-Fidelity (HF) snapshots, then a DL-ROM is built to approximate the map between the parameters and the POD coordinates.&lt;/p>
+&lt;h2 id="offline">Offline&lt;/h2>
+&lt;p>A POD procedure (randomSVD)
+A Deep Learning-based Reduced Order Model through an encoder, a Deep Feedforward Neural Network (DFNN) and a decoder.&lt;/p>
+&lt;h2 id="online">Online&lt;/h2>
+&lt;p>An approximation is found with the DFNN and the decoder.&lt;/p>
+&lt;h2 id="codes">Codes:&lt;/h2>
+&lt;p>
+&lt;/p>
+&lt;p>
+&lt;/p>
+&lt;h2 id="details">Details:&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;h4 id="a-model-problem">A model problem&lt;/h4>
+&lt;/li>
+&lt;/ul>
+$$
+\begin{align}
+&amp;\partial_t u - \nabla \cdot(\mu_1 \nabla u) + b(t;\mu)\cdot \nabla u + c u =f(\mu_3,\mu_4), \textrm{ in } \Omega \times (0,T),\\
+&amp; \mu_1 \nabla u \cdot n=0, \textrm{ on } \partial \Omega \times (0,T),\\
+&amp; u(0)=0, \textrm{ in } \Omega,\\
+\end{align}
+$$&lt;p>
+Here, $\mu=(\mu_1,\mu_2,\mu_3,\mu_4)$ is our parameter of interest.
+We employ P1 elements with a backward time scheme of order 2.&lt;/p>
+&lt;p>The parameter set is given by $\mathcal{G}=[0.002, 0.005] \times [30, 70] \times [0.4, 0.6]^2$.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;h4 id="pod-dl-rom">POD-DL-ROM&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;h5 id="offline-stage">OFFLINE STAGE&lt;/h5>
+&lt;p>After the data compression with a rSVD, the training strategy consists in:&lt;/p>
+&lt;ul>
+&lt;li>1/ encoding the compressed solution with a CAE that goes from $\mathbb{R}^N \to \mathbb{R}^n$ with the dimension of the latent space $n$ as close as possible to the number of parameters ($n&lt;&lt;N$),&lt;/li>
+&lt;li>2/ learning to approximate the latent space with a DFNN,&lt;/li>
+&lt;li>3/ decoding this approximation to find the original solution.~&lt;/li>
+&lt;/ul>
+&lt;p>Many algorithm parameters can be adapted to enhance the accuracy or to reduce the offline part runtimes (Number of training parameters, maximum iterations, learning rate, number of minibatches, latent space dimension, number of convolution filters &amp;hellip;)&lt;/p>
+&lt;p>See more details on the basic concepts of deep learning in Appendix A of &amp;ldquo;A Comprehensive Deep Learning-Based Approach to Reduced Order Modeling of Nonlinear Time-Dependent Parametrized PDEs&amp;rdquo;.&lt;/p>
+&lt;p>A pretraining stage consisting in initializing the network parameters can be added with a simplified model to reduce the number of required iterations.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;h4 id="online-algorithm">Online algorithm&lt;/h4>
+&lt;/li>
+&lt;/ul>
+&lt;p>An approximation is found with the DFNN and the decoder.
+The key ingredient here is the DFNN that avoids the use of the encoder during the online time, part that is costly in time.&lt;/p>
+&lt;p>Furthermore, the POD compression reduce the offline costs compared to DL-ROMs: Indeed, the compressed snapshots (of dimension the number of modes $N$) are considered as the action of the first layer of the CAE instead of the true snapshots (the dimension is the number of degrees of freedom $>>N$).&lt;/p>
+&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;/ul></description></item><item><title>POD-Galerkin</title><link>https://reducedbasis.github.io/docs/pod/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/pod/</guid><description>&lt;p>The Galerkin-Proper Orthogonal Decomposition (Galerkin-POD) is one of the most popular model reduction techniques for nonlinear partial differential equations. It is based on a Galerkin-type approximation, where the POD basis functions contain information from a solution of the dynamical system at pre-specified instances, so-called snapshots.&lt;/p>
 &lt;h2 id="offline">Offline&lt;/h2>
 &lt;p>A POD procedure (in other words, SVD or PCA)&lt;/p>
 &lt;h2 id="online">Online&lt;/h2>
@@ -293,6 +359,12 @@ $$ g^M(x,\nu^{target})=\sum_{i=1}^M \alpha(\nu^{target}) q(x). $$&lt;p>There exi
 &lt;h2 id="references">References&lt;/h2>
 &lt;ul>
 &lt;li>
+&lt;p>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>
+&lt;/p>
 &lt;/li>
 &lt;/ul></description></item><item><title>NIRB 2-grid</title><link>https://reducedbasis.github.io/docs/nirb2grid/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/nirb2grid/</guid><description>&lt;h4 id="description">Description&lt;/h4>
 &lt;p>Offline-Online Decomposition:&lt;/p>
