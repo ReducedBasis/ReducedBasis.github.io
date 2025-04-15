@@ -5355,7 +5355,7 @@ Q^* (\mathbf{A}-\mathbf{Q} \mathbf{Q}^* \mathbf{A})=0.
 $$&lt;p>Therefore $\mathbf{Q} \mathbf{Q}^*$ acts like a orthogonal projector and $\mathbf{Q} \mathbf{Q}^* \mathbf{A}$ is the best approximation of $\mathbf{A}$ in the space spanned by the columns of $\mathbf{Q}$.
 In other words, $\mathbf{Q} \mathbf{Q}^* \mathbf{A}$ is the orthogonal projection of $\mathbf{A}$ onto the range of $\mathbf{Q}$ and thus,&lt;/p>
 $$\begin{equation*}
-col(\mathbf{A}-\mathbf{Q} \mathbf{Q}^*\mathbf{A}) \perp Im(\mathbf{Q}.
+col(\mathbf{A}-\mathbf{Q} \mathbf{Q}^*\mathbf{A}) \perp Im(\mathbf{Q}).
 \end{equation*}$$&lt;p>Of course, we want the columns of $\mathbf{Q}$ to be as small as possible. The dimension $N$ is sometimes called the numerical rank of the matrix.&lt;/p>
 $$
 \begin{equation*}
@@ -5384,9 +5384,9 @@ $$\begin{equation*}
 \mathbf{Y}=\mathbf{A} \ \mathbf{A}^T \mathbf{Y},
 \end{equation*}
 $$&lt;p>and we orthonormalize $\mathbf{Y}$ if $q>2$.&lt;/p>
-&lt;p>With a QR orthonormalization of $\mathbf{Y}$, we construct the reduced matrix $\mathbf{B} \in mathbb{R}^{N \times Ntrain} $ such that&lt;/p>
+&lt;p>With a QR orthonormalization of $\mathbf{Y}$, we construct the reduced matrix $\mathbf{B} \in \mathbb{R}^{N \times Ntrain} $ such that&lt;/p>
 $$ \mathbf{B}= \mathbf{Q}^T \mathbf{A}.
-$$&lt;p>Then we exploit a truncated SVD on $\mathbf{B}$ to generate the reduced basis of $\mathbf{A}$, denoted by $\mathcal{U}$:&lt;/p>
+$$&lt;p>Then we exploit a truncated SVD on $\mathbf{B}$ to generate the reduced basis of $\mathbf{A}$, denoted by $\mathbf{U}$:&lt;/p>
 $$
 \begin{equation*}
 \mathbf{U}=\mathbf{Q} \ \tilde{\mathbf{U}},
