@@ -4889,7 +4889,8 @@ $$\begin{align*}
 &amp; u(0)=0, \textrm{ in } \Omega,\\
 \end{align*}$$&lt;p>Here, $\mu=(\mu_1,\mu_2,\mu_3,\mu_4)$ is our parameter of interest.
 We employ P1 elements with a backward time scheme of order 2.&lt;/p>
-&lt;p>The parameter set is given by $[0.002, 0.005] × [30, 70] × [0.4, 0.6]^2$&lt;/p>
+&lt;p>In the paper &amp;ldquo;POD-DL-ROM: Enhancing deep learning-based reduced order models for nonlinear parametrized PDEs by proper orthogonal decomposition&amp;rdquo;, the parameter set is given by $[0.002, 0.005] × [30, 70] × [0.4, 0.6]^2$.&lt;/p>
+&lt;p>We tested the method below with $\mu_1=0.004$, $\mu_2 \in [10,100]$, $\mu_3 \in [0.4, 0.6]$ and $\mu_4=0.5$ and 20 time steps (to reduce the costs of the offline stage).&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="s2">&amp;#34;&amp;#34;&amp;#34; First we define a mesh for the unit square with the boundary decomposition &amp;#34;&amp;#34;&amp;#34;&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">mesh&lt;/span>&lt;span class="o">=&lt;/span> &lt;span class="n">skfem&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MeshTri&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">refined&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">6&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_boundaries&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
