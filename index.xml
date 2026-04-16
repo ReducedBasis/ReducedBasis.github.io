@@ -455,31 +455,82 @@ Thanks to an interpolation/regression, the function that maps the input paramete
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>EIM</title><link>https://reducedbasis.github.io/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) is used with the POD-Galerkin to obtain an affine decomposition on the parameter.&lt;/p>
+&lt;/ul></description></item><item><title>EIM</title><link>https://reducedbasis.github.io/docs/eim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/eim/</guid><description>&lt;p>The Empirical Interpolation Method (EIM) can be combined with POD-Galerkin to derive an affine parameter decomposition when the PDE depends nonlinearly on the parameters.&lt;/p>
 &lt;p>Indeed, as explained in the Galerkin-POD section (
-), we need an affine decomposition with respects to the parameter, then the parameter-independent terms are computed offline, making the online computation faster.&lt;/p>
-&lt;p>The EIM build a linear combination of fully determined solutions from basis functions $(q_i)_{i=1,...,M}$ depending on some interpolating points (called &amp;ldquo;magic points&amp;rdquo;) and some values $(\alpha_i)_{i=1,...,M}$ relying on certain instances of the parameter $\nu$, selected within the algorithm.
+), an affine decomposition with respect to the parameter is needed in order to assemble, during the offline stage, the parameter-independent matrices involved in the problem, thereby making the online computations more efficient.&lt;/p>
+&lt;p>In the Galerkin-POD model problem, the reduced matrices $A1$ and $B1$ are computed offline, and their dependence on $\mu$ is handled online through scalar multiplication. The stationary Navier–Stokes equations are nonlinear, so a fixed-point iteration is required to solve them, which makes the formulation of the reduced problem less straightforward, but let us focus on $B1$, defined by&lt;/p>
+$$B1_{ij}=(\nabla \Phi_j,\nabla \Phi_i),$$&lt;p>we observe that&lt;/p>
+$$B1=P^T \ B1^{\mathcal{N}} P, $$&lt;p>where ${P}$ is the matrix of the modes $[\Phi_1,\dots,\Phi_N] \in \mathbb{R}^{N\times \mathcal{N}}$, i.e. $(P_{ij})_{j=1,\dots,\mathcal{N}}$ are the discretized coefficients of $\Phi_i$ in $V_h$, $P=(P_{ij}) \in \mathbb{R}^{ \mathcal{N} \times N},$ and $B1^{\mathcal{N}}$ is the corresponding high-fidelity discretized matrix.&lt;/p>
+&lt;p>Thus, $B1^{\mathcal{N}}$ must first be assembled offline, which is only possible if its dependence on the parameter is affine, that is,&lt;/p>
+$$
+\begin{equation}
+B1^{\mathcal{N}}=\sum_q \theta_q(\mu) \ \ B1^{\mathcal{N}}_q,
+\end{equation}
+$$&lt;p>where each matrix $B1^{\mathcal{N}}_q$ is independent of $\mu$.&lt;/p>
+&lt;p>If an affine dependence is not available, the EIM can be employed. It approximates the high-fidelity matrix (or more generally the nonlinear high fidelity part) by a linear combination as in (1). More precisely, the method builds an approximation using basis functions $(q_i)_{i=1,...,M}$ together with interpolating points (called &amp;ldquo;magic points&amp;rdquo;) and some values $(\alpha_i)_{i=1,...,M}$ relying on certain instances of the parameter $\mu$, selected within the algorithm.
 Let us introduce the method with the following example:&lt;/p>
 &lt;p>Consider a function&lt;/p>
-$$ g(x,\nu)= \frac1{\sqrt{(x_1-\nu_1)^2+(y_1-\nu_2)}},$$&lt;p>with $x=(x_1,x_2)$ and $\nu=(\nu_1,\nu_2)$.&lt;/p>
+$$ g(x,\mu)= \frac1{\sqrt{(x_1-\mu_1)^2+(y_1-\mu_2)}},$$&lt;p>with $x=(x_1,x_2)$ and $\mu=(\mu_1,\mu_2)$.&lt;/p>
+&lt;p>We aim to approximate $g$ by an interpolation&lt;/p>
+$$g_M(x;\mu):=\mathcal{I}_M[g](x;\mu)=\sum_{j=1}^M \alpha_j(\mu) q_j(x),$$&lt;p>where $\mathcal{I}_M$ is an interpolation operator, $M$ is the number of selected &amp;ldquo;magic&amp;rdquo; points. Interpolation conditions are imposed at these selected points&lt;/p>
+$$
+\begin{equation}
+\boxed{x_1,\dots,x_M\in\Omega:\quad g(x_n;\mu)=\mathcal{I}_M(g)(x_n;\mu),\quad n=1,\dots,M.}
+\end{equation}
+$$&lt;p>
+$(q_1,\dots,q_M)$ is the set of EIM basis functions, and $\alpha_m(\mu)$ are parameter-dependent coefficients.&lt;/p>
+&lt;p>&lt;strong>Offline&lt;/strong> consists in&lt;/p>
+&lt;ul>
+&lt;li>finding the magic points $x_1,\dots x_M$,&lt;/li>
+&lt;li>generating the basis functions $q_j$ and assembling them into a matrix $\mathbf{Q}_M$,&lt;/li>
+&lt;/ul>
+&lt;p>And then, the &lt;strong>online&lt;/strong> stage for a new parameter value $\mu$ only requires:&lt;/p>
+&lt;ul>
+&lt;li>evaluating $g(x_n;\mu)$ at the $M$ magic points to get $\mathbf{G}(\mu)=(g(x_n,\mu))_{n=1,\dots,M}$&lt;/li>
+&lt;li>solving a small $M\times M$ linear system to get the coefficients $\alpha(\mu)$,&lt;/li>
+&lt;li>forming&lt;/li>
+&lt;/ul>
+$$g_M(x;\mu)=\sum_{j=1}^{M}\alpha_j(\mu)\ q_j(x)$$&lt;p>EIM builds $(q_j,x_j)$ iteratively using a greedy residual criterion.
+We now describe in detail the offline and the online stages.&lt;/p>
 &lt;ul>
 &lt;li>
 &lt;h4 id="offline">&amp;ldquo;OFFLINE&amp;rdquo;&lt;/h4>
-&lt;/li>
+&lt;ul>
+&lt;li>The first chosen parameter $\mu^1$ is the one that maximizes $g$ on norm $\mathcal{L}^{\infty}$ (we want to retrieve most information on $g$ with few points) and the associated magic point $x^1$ is the point that gives the most information on $g(\cdot,\mu^1)$ i.e. which maximizes its modulus. &lt;br>
+Then the first basis function is $q_1(\cdot) = \frac{g(\cdot,\mu^1)}{g(x^1, \mu^1)}$.
+We can then find $\alpha_1$ as the coefficient corresponding to this basis function:&lt;br>
+For each parameter $\mu \in \mathcal{G}$,&lt;br>&lt;br>
+$\quad \quad \quad \quad \boxed{\mathcal{I}_1[g](\cdot;\mu)=\alpha_1(\mu)\,q_1(\cdot)}$&lt;br>&lt;br>
+such that $\mathcal{I}_1[g](x_1;\mu)=g(x_1;\mu)$ from imposed conditions (2).&lt;br>
+Thus, since $q_1(x_1)=1$ from the normalization, we get $\alpha_1(\mu)=g(x_1;\mu),$&lt;/li>
+&lt;li>For $\mathcal{I}_2$, we seek the second magic point.&lt;br>
+We define the residual $r(x;\mu)=g(x;\mu) - \mathcal{I}_1[g](x;\mu)$, and we find $\mu_2$ the parameter that maximizes $\|r(\cdot;\mu)\|_{\mathcal{L}^{\infty}}$.&lt;br>
+Then, $x_2:= \mathrm{arg max}_{x \in \Omega}|r(x;\mu_2)|$.&lt;br>
+The second basis function is $q_2(\cdot) = \frac{r(\cdot,\mu^2)}{r(x^2, \mu^2)}$.&lt;br>&lt;br>&lt;br>
+We now seek $\alpha_2$:&lt;br>
+For each parameter $\mu \in \mathcal{G}$, we have &lt;br>&lt;br>
+$\quad \quad \quad \boxed{\mathcal{I}_2[g](\cdot;\mu)=\alpha_1(\mu)\,q_1(\cdot)+\alpha_2(\mu)\,q_2(\cdot)}$&lt;br>&lt;br>
+such that $\mathcal{I}_2[g](x_i;\mu)=g(x_i;\mu), \quad i=1,2$ from (2).
+Thus,&lt;/li>
 &lt;/ul>
-&lt;p>The first chosen parameter $\nu^1$ is the one that maximizes $g$ on norm $\mathcal{L}^{\infty}$ (we want to retrieve most information on $g$ with few points) and the associated magic point $x^1$ is the point that gives the most information on $g(\cdot,\nu^1)$ i.e. which maximizes its modulus.&lt;/p>
-&lt;p>Then the first basis function is $q_1(\cdot) = \frac{g(\cdot,\nu^1)}{g(x^1, \nu^1)}$. &lt;br>
-We can then find $\alpha_1$ as the coefficient corresponding to this basis function:&lt;/p>
-&lt;p>We compute for each training parameters $\nu \in \mathcal{G}$ the real $G$ such that $G=g(x^1,\nu)$ and then we solve the problem $Q \alpha^1(\nu)=G$ where $Q$ at this initialization step is just $q_1(x^1)$.&lt;/p>
-&lt;p>Then, we find recursively the $M$ basis functions with the following interpolation problem&lt;/p>
+$$
+\begin{aligned}
+\alpha_1(\mu)\,q_1(x_1)+\alpha_2(\mu)\,q_2(x_1) &amp;= g(x_1;\mu),\\
+\alpha_1(\mu)\,q_1(x_2)+\alpha_2(\mu)\,q_2(x_2) &amp;= g(x_2;\mu).
+\end{aligned}
+$$&lt;p>where $q_2(x_1)=0,\quad q_2(x_2)=1.$ Thus,&lt;/p>
+$$\alpha_1(\mu)=A(x_1;\mu), \textrm{ and }\alpha_2(\mu) =A(x_2;\mu)-A(x_1;\mu)\,q_1(x_2).$$&lt;/li>
+&lt;/ul>
+&lt;p>And so on &amp;hellip;&lt;/p>
+&lt;p>We find recursively the $M$ magic points, basis functions and coefficients with the following interpolation problem&lt;/p>
 $$ \forall 1 \leq i \leq M-1,\ \mathcal{I}_{M-1}[g](x^i)= g(x^i),$$$$\mathcal{I}_{M-1}[g]=\sum_{j=1}^{M-1} \alpha_j^{M-1} q_j.$$&lt;ul>
 &lt;li>
 &lt;h4 id="-online-">&amp;quot; ONLINE &amp;quot;&lt;/h4>
 &lt;/li>
 &lt;/ul>
-&lt;p>Now we are interested by a new parameter $\nu^{target}$.
-To obtain the linear decomposition, we solve a reduced problem from the previously computed basis functions and with the magic points (see details in the Python notebook).&lt;/p>
-$$ g^M(x,\nu^{target})=\sum_{i=1}^M \alpha(\nu^{target}) q(x). $$&lt;p>There exists a generalized form of this method (GEIM) and a discrete version named DEIM. The GEIM replaces the $M$ pointwise evaluations used by the EIM by general measures. In the presence of measurement noise, a stabilization of the method can be employed.&lt;/p>
+&lt;p>Now we are interested by a new parameter $\mu^{target}$.
+To obtain the linear decomposition, we solve a reduced problem from the previously computed basis functions and with the magic points (see also details in the Python notebook).&lt;/p>
+$$ g^M(x,\mu^{target})=\sum_{i=1}^M \alpha(\mu^{target}) q(x). $$&lt;p>There exists a generalized form of this method (GEIM) and a discrete version named DEIM. The GEIM replaces the $M$ pointwise evaluations used by the EIM by general measures. In the presence of measurement noise, a stabilization of the method can be employed.&lt;/p>
 &lt;h2 id="codes">Codes:&lt;/h2>
 &lt;p>
 &lt;/p>
