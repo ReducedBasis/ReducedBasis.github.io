@@ -1,0 +1,1006 @@
+<!doctype html><!-- This site was created with Hugo Blox. https://hugoblox.com --><!-- Last Published: April 16, 2026 --><html lang=en-us dir=ltr data-wc-theme-default=light><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=generator content="Hugo Blox Builder 0.2.0"><meta name=description content='import numpy as np
+import skfem  # for Finite Element Method
+from skfem import Basis, ElementTriP0
+from skfem import MeshTri
+import matplotlib.pyplot as plt
+import time
+# ============================================================
+# Param
+# ============================================================
+Nx = 50
+Ny = 50
+
+# Maillage triangulaire du carré (0,1)^2
+m = MeshTri.init_tensor(
+    np.linspace(0.0, 1.0, Nx + 1),
+    np.linspace(0.0, 1.0, Ny + 1)
+)
+
+
+dx=1./Nx
+dy=1./Ny
+
+cell_areas=0.5*dx*dy
+
+NumberOfModes = 15
+NumberOfSnapshots = 20
+
+MuMin = -2.0
+MuMax = -1.0
+
+rw = 0.15   # width of gaussian sensors
+
+basis = Basis(m, ElementTriP0())   # P0 : one value for each element
+dof_locs = basis.doflocs           # barycenters of elements for P0
+ndof = dof_locs.shape[1]
+
+# training set
+mu1_train = np.linspace(MuMin, MuMax, NumberOfSnapshots)
+mu2_train = np.linspace(MuMin, MuMax, NumberOfSnapshots)
+
+# ============================================================
+# Function g(x; mu1, mu2)
+# ============================================================
+
+def g_fun(x, mu1, mu2):
+    return 1.0 / ((x[0] - mu1)**2 + (x[1] - mu2))
+
+def project_g(mu1, mu2):
+    return basis.project(lambda x: g_fun(x, mu1, mu2))
+
+# ============================================================
+# Gaussian kernel ell_m(x)
+# ============================================================
+
+def gaussian_weight_noC(x, xm, rw):
+    """
+    Gaussian centered at xm, without normalization constant.
+    x: shape (2, npts)
+    xm: shape (2,)
+    """
+    return np.exp(-0.5 * np.sum((x - xm[:, None])**2, axis=0) / rw**2)
+
+
+# ============================================================
+# Construction of continuous-inspired candidate sensors l_m
+# ============================================================
+
+def sigma_m_from_center(xm, rw):
+    """
+    Build the discrete representation of the continuous functional
+
+        sigma_m(g) = \int_\Omega l_m(x) g dx
+
+    for P0 functions, using barycenter quadrature:
+        \int_K l_m(x) dx ~ |K| l_m(x_K)=w[K]
+
+    Returns a weight vector w such that
+        sigma_m(g_h) ~ sum_K w[K] * g_h[K]
+    """
+    l_vals = gaussian_weight_noC(dof_locs, xm, rw)   # l(x_K)
+    w_K = cell_areas * l_vals                          # |K| * l(x_K)
+
+    s = np.sum(w_K)
+    if s > 1e-14:
+        w_K = w_K / s   # normalize so that l_m(1) = 1 approximately
+    return w_K
+
+def apply_sigma_m(w, u):
+    """
+    Apply the functional represented by weights w to the discrete field u.
+    """
+    return np.dot(w, u)
+
+# candidate sensors: one candidate centered at each barycenter
+L_candidates = []
+L_centers = []
+
+for k in range(ndof):
+    xm = dof_locs[:, k]
+    wm = sigma_m_from_center(xm, rw)
+    L_candidates.append(wm)
+    L_centers.append((xm[0], xm[1]))
+
+# ============================================================
+# OFFLINE : initialization
+# ============================================================
+
+ns = NumberOfSnapshots
+ntrain = ns * ns
+
+GGrid = np.zeros((ndof, ntrain))
+GinftyGrid = np.zeros(ntrain)
+mu_pairs = []
+
+col = 0
+for a in mu1_train:
+    for b in mu2_train:
+        u = project_g(a, b)
+        GGrid[:, col] = u
+        GinftyGrid[col] = np.linalg.norm(u, np.inf)
+        mu_pairs.append((a, b))
+        col += 1
+
+# first parameter
+muIndex = np.argmax(GinftyGrid)
+muIndexlist = [muIndex]
+
+mu1_star, mu2_star = mu_pairs[muIndex]
+g1 = GGrid[:, muIndex].copy()
+
+# first magic sensor l_1: maximize |l(g1)|
+scores = np.array([np.abs(apply_sigma_m(wm, g1)) for wm in L_candidates])
+LIndex = np.argmax(scores)
+
+LIndexlist = [LIndex]
+Llist = [L_candidates[LIndex]]
+
+print("First magic sensor center:", L_centers[LIndex])
+
+# first basis function q1 normalized by l_1(q1)=1
+
+q1 = g1 /  apply_sigma_m(Llist[0], g1)
+qlist = [q1]
+
+# ============================================================
+# OFFLINE : GEIM iterations
+# ============================================================
+
+for M in range(1, NumberOfModes):
+    print(f"M = {M}")
+
+    # Interpolation matrix B_M with entries l_i(q_j)
+    Qmat = np.zeros((M, M))
+    for i in range(M):
+        for j in range(M):
+            Qmat[i, j] = apply_sigma_m(Llist[i], qlist[j])
+
+    ResidualGrid = np.zeros((ndof, ntrain))
+    ResidualInf = np.zeros(ntrain)
+
+    # residual for each training parameter
+    for col, (a, b) in enumerate(mu_pairs):
+        u = GGrid[:, col].copy()
+
+        rhs = np.array([apply_sigma_m(Llist[i], u) for i in range(M)])
+
+        alpha = np.linalg.solve(Qmat, rhs)
+
+        residual = u.copy()
+        for i in range(M):
+            residual -= alpha[i] * qlist[i]
+
+        ResidualGrid[:, col] = residual
+        ResidualInf[col] = np.linalg.norm(residual, np.inf)
+
+    # avoid already selected parameters
+    for old_idx in muIndexlist:
+        ResidualInf[old_idx] = -1e30
+
+    # new parameter
+    muIndex = np.argmax(ResidualInf)
+    muIndexlist.append(muIndex)
+
+    mu1_star, mu2_star = mu_pairs[muIndex]
+    rM = ResidualGrid[:, muIndex].copy()
+
+    print("Selected parameter:", (mu1_star, mu2_star))
+    print("Residual max norm :", np.max(ResidualInf))
+
+    # choose new magic sensor maximizing |l(rM)|
+    scores = np.array([abs(apply_sigma_m(w, rM)) for w in L_candidates])
+
+    # avoid already selected sensors
+    for old_L in LIndexlist:
+        scores[old_L] = -np.inf
+
+    LIndex = np.argmax(scores)
+    LIndexlist.append(LIndex)
+    Llist.append(L_candidates[LIndex])
+
+    print("New magic sensor center:", L_centers[LIndex])
+
+    # normalize new basis function by l_M(q_M)=1
+    qM = rM / apply_sigma_m(Llist[-1], rM)
+    qlist.append(qM)
+
+# ============================================================
+# ONLINE
+# ============================================================
+
+mu1_target = -0.5
+mu2_target = -0.5
+
+u_true = project_g(mu1_target, mu2_target)
+
+# complete interpolation matrix
+Qmat = np.zeros((NumberOfModes, NumberOfModes))
+for i in range(NumberOfModes):
+    for j in range(NumberOfModes):
+        Qmat[i, j] = apply_sigma_m(Llist[i], qlist[j])
+
+# rhs = [l_i(u_true)]
+rhs = np.array([apply_sigma_m(Llist[i], u_true) for i in range(NumberOfModes)])
+
+# coefficients GEIM
+alpha = np.linalg.solve(Qmat, rhs)
+
+# reconstruction GEIM
+u_geim = np.zeros(ndof)
+for j in range(NumberOfModes):
+    u_geim += alpha[j] * qlist[j]
+
+# ============================================================
+# Test in one point
+# ============================================================
+
+xseek, yseek = 0.5, 0.5
+
+element_finder = m.element_finder()
+element_index = element_finder(np.array([xseek]), np.array([yseek]))[0]
+
+approx_value = u_geim[element_index]
+true_value_fem = u_true[element_index]
+true_value_exact = g_fun(np.array([[xseek], [yseek]]), mu1_target, mu2_target)[0]
+
+print()
+print(f"Tested point : ({xseek}, {yseek})")
+print(f"Approximation GEIM  : {approx_value}")
+print(f"Projected FEM       : {true_value_fem}")
+print(f"Exact value g(x,mu) : {true_value_exact}")
+print(f"Error |GEIM - FEM|  : {abs(approx_value - true_value_fem)}")
+print(f"Error |GEIM - exact|: {abs(approx_value - true_value_exact)}")
+First magic sensor center: (0.01, 0.02)
+M = 1
+Selected parameter: (-1.0, -2.0)
+Residual max norm : 0.02627306674745511
+New magic sensor center: (1.0, 0.75)
+M = 2
+Selected parameter: (-1.631578947368421, -1.0)
+Residual max norm : 0.015000046418788585
+New magic sensor center: (0.01, 1.0)
+M = 3
+Selected parameter: (-2.0, -2.0)
+Residual max norm : 0.0019474457678794344
+New magic sensor center: (0.56, 0.01)
+M = 4
+Selected parameter: (-1.2105263157894737, -1.0)
+Residual max norm : 0.00031219133964447207
+New magic sensor center: (0.01, 0.46)
+M = 5
+Selected parameter: (-1.0, -1.368421052631579)
+Residual max norm : 0.00026240204454349336
+New magic sensor center: (1.0, 0.01)
+M = 6
+Selected parameter: (-1.3157894736842106, -1.7894736842105263)
+Residual max norm : 5.765112454682722e-05
+New magic sensor center: (0.43, 0.74)
+M = 7
+Selected parameter: (-2.0, -1.105263157894737)
+Residual max norm : 1.5172047617061872e-05
+New magic sensor center: (0.26, 0.01)
+M = 8
+Selected parameter: (-1.0, -1.6842105263157894)
+Residual max norm : 6.4691190488781556e-06
+New magic sensor center: (0.01, 0.7000000000000001)
+M = 9
+Selected parameter: (-1.1578947368421053, -1.3157894736842106)
+Residual max norm : 1.9236475368019866e-06
+New magic sensor center: (0.28, 0.43)
+M = 10
+Selected parameter: (-1.1578947368421053, -2.0)
+Residual max norm : 1.5631815551238951e-06
+New magic sensor center: (0.6900000000000001, 0.48)
+M = 11
+Selected parameter: (-1.0, -1.105263157894737)
+Residual max norm : 3.9161614561813685e-07
+New magic sensor center: (0.99, 1.0)
+M = 12
+Selected parameter: (-1.105263157894737, -1.0)
+Residual max norm : 7.386577928874025e-07
+New magic sensor center: (0.1, 0.21000000000000002)
+M = 13
+Selected parameter: (-1.631578947368421, -2.0)
+Residual max norm : 1.7578529701250268e-07
+New magic sensor center: (0.65, 1.0)
+M = 14
+Selected parameter: (-2.0, -1.5789473684210527)
+Residual max norm : 1.6866644894449681e-07
+New magic sensor center: (0.74, 0.01)
+
+Tested point : (0.5, 0.5)
+Approximation GEIM  : 0.498339657743457
+Projected FEM       : 0.49834174836073053
+Exact value g(x,mu) : 0.5
+Error |GEIM - FEM|  : 2.0906172735202233e-06
+Error |GEIM - exact|: 0.0016603422565429904
+
+'><link rel=alternate hreflang=en-us href=https://reducedbasis.github.io/post/geim/><link rel=stylesheet href=/css/themes/blue.min.css><link href=/dist/wc.min.css rel=stylesheet><script>window.hbb={defaultTheme:document.documentElement.dataset.wcThemeDefault,setDarkTheme:()=>{document.documentElement.classList.add("dark"),document.documentElement.style.colorScheme="dark"},setLightTheme:()=>{document.documentElement.classList.remove("dark"),document.documentElement.style.colorScheme="light"}},console.debug(`Default Hugo Blox Builder theme is ${window.hbb.defaultTheme}`),"wc-color-theme"in localStorage?localStorage.getItem("wc-color-theme")==="dark"?window.hbb.setDarkTheme():window.hbb.setLightTheme():(window.hbb.defaultTheme==="dark"?window.hbb.setDarkTheme():window.hbb.setLightTheme(),window.hbb.defaultTheme==="system"&&(window.matchMedia("(prefers-color-scheme: dark)").matches?window.hbb.setDarkTheme():window.hbb.setLightTheme()))</script><script>document.addEventListener("DOMContentLoaded",function(){let e=document.querySelectorAll("li input[type='checkbox'][disabled]");e.forEach(e=>{e.parentElement.parentElement.classList.add("task-list")});const t=document.querySelectorAll(".task-list li");t.forEach(e=>{let t=Array.from(e.childNodes).filter(e=>e.nodeType===3&&e.textContent.trim().length>1);if(t.length>0){const n=document.createElement("label");t[0].after(n),n.appendChild(e.querySelector("input[type='checkbox']")),n.appendChild(t[0])}})})</script><link rel=icon type=image/png href=/media/icon_hu16304263275779960481.png><link rel=apple-touch-icon type=image/png href=/media/icon_hu1534112029185156839.png><link rel=canonical href=https://reducedbasis.github.io/post/geim/><meta property="twitter:card" content="summary"><meta property="twitter:site" content="@GetResearchDev"><meta property="twitter:creator" content="@GetResearchDev"><meta property="og:site_name" content="RBM Docs"><meta property="og:url" content="https://reducedbasis.github.io/post/geim/"><meta property="og:title" content="GEIM | RBM Docs"><meta property="og:description" content='import numpy as np
+import skfem  # for Finite Element Method
+from skfem import Basis, ElementTriP0
+from skfem import MeshTri
+import matplotlib.pyplot as plt
+import time
+# ============================================================
+# Param
+# ============================================================
+Nx = 50
+Ny = 50
+
+# Maillage triangulaire du carré (0,1)^2
+m = MeshTri.init_tensor(
+    np.linspace(0.0, 1.0, Nx + 1),
+    np.linspace(0.0, 1.0, Ny + 1)
+)
+
+
+dx=1./Nx
+dy=1./Ny
+
+cell_areas=0.5*dx*dy
+
+NumberOfModes = 15
+NumberOfSnapshots = 20
+
+MuMin = -2.0
+MuMax = -1.0
+
+rw = 0.15   # width of gaussian sensors
+
+basis = Basis(m, ElementTriP0())   # P0 : one value for each element
+dof_locs = basis.doflocs           # barycenters of elements for P0
+ndof = dof_locs.shape[1]
+
+# training set
+mu1_train = np.linspace(MuMin, MuMax, NumberOfSnapshots)
+mu2_train = np.linspace(MuMin, MuMax, NumberOfSnapshots)
+
+# ============================================================
+# Function g(x; mu1, mu2)
+# ============================================================
+
+def g_fun(x, mu1, mu2):
+    return 1.0 / ((x[0] - mu1)**2 + (x[1] - mu2))
+
+def project_g(mu1, mu2):
+    return basis.project(lambda x: g_fun(x, mu1, mu2))
+
+# ============================================================
+# Gaussian kernel ell_m(x)
+# ============================================================
+
+def gaussian_weight_noC(x, xm, rw):
+    """
+    Gaussian centered at xm, without normalization constant.
+    x: shape (2, npts)
+    xm: shape (2,)
+    """
+    return np.exp(-0.5 * np.sum((x - xm[:, None])**2, axis=0) / rw**2)
+
+
+# ============================================================
+# Construction of continuous-inspired candidate sensors l_m
+# ============================================================
+
+def sigma_m_from_center(xm, rw):
+    """
+    Build the discrete representation of the continuous functional
+
+        sigma_m(g) = \int_\Omega l_m(x) g dx
+
+    for P0 functions, using barycenter quadrature:
+        \int_K l_m(x) dx ~ |K| l_m(x_K)=w[K]
+
+    Returns a weight vector w such that
+        sigma_m(g_h) ~ sum_K w[K] * g_h[K]
+    """
+    l_vals = gaussian_weight_noC(dof_locs, xm, rw)   # l(x_K)
+    w_K = cell_areas * l_vals                          # |K| * l(x_K)
+
+    s = np.sum(w_K)
+    if s > 1e-14:
+        w_K = w_K / s   # normalize so that l_m(1) = 1 approximately
+    return w_K
+
+def apply_sigma_m(w, u):
+    """
+    Apply the functional represented by weights w to the discrete field u.
+    """
+    return np.dot(w, u)
+
+# candidate sensors: one candidate centered at each barycenter
+L_candidates = []
+L_centers = []
+
+for k in range(ndof):
+    xm = dof_locs[:, k]
+    wm = sigma_m_from_center(xm, rw)
+    L_candidates.append(wm)
+    L_centers.append((xm[0], xm[1]))
+
+# ============================================================
+# OFFLINE : initialization
+# ============================================================
+
+ns = NumberOfSnapshots
+ntrain = ns * ns
+
+GGrid = np.zeros((ndof, ntrain))
+GinftyGrid = np.zeros(ntrain)
+mu_pairs = []
+
+col = 0
+for a in mu1_train:
+    for b in mu2_train:
+        u = project_g(a, b)
+        GGrid[:, col] = u
+        GinftyGrid[col] = np.linalg.norm(u, np.inf)
+        mu_pairs.append((a, b))
+        col += 1
+
+# first parameter
+muIndex = np.argmax(GinftyGrid)
+muIndexlist = [muIndex]
+
+mu1_star, mu2_star = mu_pairs[muIndex]
+g1 = GGrid[:, muIndex].copy()
+
+# first magic sensor l_1: maximize |l(g1)|
+scores = np.array([np.abs(apply_sigma_m(wm, g1)) for wm in L_candidates])
+LIndex = np.argmax(scores)
+
+LIndexlist = [LIndex]
+Llist = [L_candidates[LIndex]]
+
+print("First magic sensor center:", L_centers[LIndex])
+
+# first basis function q1 normalized by l_1(q1)=1
+
+q1 = g1 /  apply_sigma_m(Llist[0], g1)
+qlist = [q1]
+
+# ============================================================
+# OFFLINE : GEIM iterations
+# ============================================================
+
+for M in range(1, NumberOfModes):
+    print(f"M = {M}")
+
+    # Interpolation matrix B_M with entries l_i(q_j)
+    Qmat = np.zeros((M, M))
+    for i in range(M):
+        for j in range(M):
+            Qmat[i, j] = apply_sigma_m(Llist[i], qlist[j])
+
+    ResidualGrid = np.zeros((ndof, ntrain))
+    ResidualInf = np.zeros(ntrain)
+
+    # residual for each training parameter
+    for col, (a, b) in enumerate(mu_pairs):
+        u = GGrid[:, col].copy()
+
+        rhs = np.array([apply_sigma_m(Llist[i], u) for i in range(M)])
+
+        alpha = np.linalg.solve(Qmat, rhs)
+
+        residual = u.copy()
+        for i in range(M):
+            residual -= alpha[i] * qlist[i]
+
+        ResidualGrid[:, col] = residual
+        ResidualInf[col] = np.linalg.norm(residual, np.inf)
+
+    # avoid already selected parameters
+    for old_idx in muIndexlist:
+        ResidualInf[old_idx] = -1e30
+
+    # new parameter
+    muIndex = np.argmax(ResidualInf)
+    muIndexlist.append(muIndex)
+
+    mu1_star, mu2_star = mu_pairs[muIndex]
+    rM = ResidualGrid[:, muIndex].copy()
+
+    print("Selected parameter:", (mu1_star, mu2_star))
+    print("Residual max norm :", np.max(ResidualInf))
+
+    # choose new magic sensor maximizing |l(rM)|
+    scores = np.array([abs(apply_sigma_m(w, rM)) for w in L_candidates])
+
+    # avoid already selected sensors
+    for old_L in LIndexlist:
+        scores[old_L] = -np.inf
+
+    LIndex = np.argmax(scores)
+    LIndexlist.append(LIndex)
+    Llist.append(L_candidates[LIndex])
+
+    print("New magic sensor center:", L_centers[LIndex])
+
+    # normalize new basis function by l_M(q_M)=1
+    qM = rM / apply_sigma_m(Llist[-1], rM)
+    qlist.append(qM)
+
+# ============================================================
+# ONLINE
+# ============================================================
+
+mu1_target = -0.5
+mu2_target = -0.5
+
+u_true = project_g(mu1_target, mu2_target)
+
+# complete interpolation matrix
+Qmat = np.zeros((NumberOfModes, NumberOfModes))
+for i in range(NumberOfModes):
+    for j in range(NumberOfModes):
+        Qmat[i, j] = apply_sigma_m(Llist[i], qlist[j])
+
+# rhs = [l_i(u_true)]
+rhs = np.array([apply_sigma_m(Llist[i], u_true) for i in range(NumberOfModes)])
+
+# coefficients GEIM
+alpha = np.linalg.solve(Qmat, rhs)
+
+# reconstruction GEIM
+u_geim = np.zeros(ndof)
+for j in range(NumberOfModes):
+    u_geim += alpha[j] * qlist[j]
+
+# ============================================================
+# Test in one point
+# ============================================================
+
+xseek, yseek = 0.5, 0.5
+
+element_finder = m.element_finder()
+element_index = element_finder(np.array([xseek]), np.array([yseek]))[0]
+
+approx_value = u_geim[element_index]
+true_value_fem = u_true[element_index]
+true_value_exact = g_fun(np.array([[xseek], [yseek]]), mu1_target, mu2_target)[0]
+
+print()
+print(f"Tested point : ({xseek}, {yseek})")
+print(f"Approximation GEIM  : {approx_value}")
+print(f"Projected FEM       : {true_value_fem}")
+print(f"Exact value g(x,mu) : {true_value_exact}")
+print(f"Error |GEIM - FEM|  : {abs(approx_value - true_value_fem)}")
+print(f"Error |GEIM - exact|: {abs(approx_value - true_value_exact)}")
+First magic sensor center: (0.01, 0.02)
+M = 1
+Selected parameter: (-1.0, -2.0)
+Residual max norm : 0.02627306674745511
+New magic sensor center: (1.0, 0.75)
+M = 2
+Selected parameter: (-1.631578947368421, -1.0)
+Residual max norm : 0.015000046418788585
+New magic sensor center: (0.01, 1.0)
+M = 3
+Selected parameter: (-2.0, -2.0)
+Residual max norm : 0.0019474457678794344
+New magic sensor center: (0.56, 0.01)
+M = 4
+Selected parameter: (-1.2105263157894737, -1.0)
+Residual max norm : 0.00031219133964447207
+New magic sensor center: (0.01, 0.46)
+M = 5
+Selected parameter: (-1.0, -1.368421052631579)
+Residual max norm : 0.00026240204454349336
+New magic sensor center: (1.0, 0.01)
+M = 6
+Selected parameter: (-1.3157894736842106, -1.7894736842105263)
+Residual max norm : 5.765112454682722e-05
+New magic sensor center: (0.43, 0.74)
+M = 7
+Selected parameter: (-2.0, -1.105263157894737)
+Residual max norm : 1.5172047617061872e-05
+New magic sensor center: (0.26, 0.01)
+M = 8
+Selected parameter: (-1.0, -1.6842105263157894)
+Residual max norm : 6.4691190488781556e-06
+New magic sensor center: (0.01, 0.7000000000000001)
+M = 9
+Selected parameter: (-1.1578947368421053, -1.3157894736842106)
+Residual max norm : 1.9236475368019866e-06
+New magic sensor center: (0.28, 0.43)
+M = 10
+Selected parameter: (-1.1578947368421053, -2.0)
+Residual max norm : 1.5631815551238951e-06
+New magic sensor center: (0.6900000000000001, 0.48)
+M = 11
+Selected parameter: (-1.0, -1.105263157894737)
+Residual max norm : 3.9161614561813685e-07
+New magic sensor center: (0.99, 1.0)
+M = 12
+Selected parameter: (-1.105263157894737, -1.0)
+Residual max norm : 7.386577928874025e-07
+New magic sensor center: (0.1, 0.21000000000000002)
+M = 13
+Selected parameter: (-1.631578947368421, -2.0)
+Residual max norm : 1.7578529701250268e-07
+New magic sensor center: (0.65, 1.0)
+M = 14
+Selected parameter: (-2.0, -1.5789473684210527)
+Residual max norm : 1.6866644894449681e-07
+New magic sensor center: (0.74, 0.01)
+
+Tested point : (0.5, 0.5)
+Approximation GEIM  : 0.498339657743457
+Projected FEM       : 0.49834174836073053
+Exact value g(x,mu) : 0.5
+Error |GEIM - FEM|  : 2.0906172735202233e-06
+Error |GEIM - exact|: 0.0016603422565429904
+
+'><meta property="og:image" content="https://reducedbasis.github.io/media/icon_hu8177510199143947247.png"><meta property="twitter:image" content="https://reducedbasis.github.io/media/icon_hu8177510199143947247.png"><meta property="og:locale" content="en-us"><meta property="article:published_time" content="2024-12-13T10:19:20+01:00"><meta property="article:modified_time" content="2024-12-13T10:19:20+01:00"><title>GEIM | RBM Docs</title><style>@font-face{font-family:inter var;font-style:normal;font-weight:100 900;font-display:swap;src:url(/dist/font/Inter.var.woff2)format(woff2)}</style><link type=text/css rel=stylesheet href=/dist/pagefind/pagefind-ui.be766eb419317a14ec769d216e9779bfe8f3737c80e780f4ba0dafb57a41a482.css integrity="sha256-vnZutBkxehTsdp0hbpd5v+jzc3yA54D0ug2vtXpBpII="><script src=/dist/pagefind/pagefind-ui.87693d7c6f2b3b347ce359d0ede762c033419f0a32b22ce508c335a81d841f1b.js integrity="sha256-h2k9fG8rOzR841nQ7ediwDNBnwoysizlCMM1qB2EHxs="></script><script>window.hbb.pagefind={baseUrl:"/"}</script><style>html.dark{--pagefind-ui-primary:#eeeeee;--pagefind-ui-text:#eeeeee;--pagefind-ui-background:#152028;--pagefind-ui-border:#152028;--pagefind-ui-tag:#152028}</style><script>window.addEventListener("DOMContentLoaded",e=>{new PagefindUI({element:"#search",showSubResults:!0,baseUrl:window.hbb.pagefind.baseUrl,bundlePath:window.hbb.pagefind.baseUrl+"pagefind/"})}),document.addEventListener("DOMContentLoaded",()=>{let e=document.getElementById("search"),t=document.getElementById("search_toggle");t&&t.addEventListener("click",()=>{if(e.classList.toggle("hidden"),e.querySelector("input").value="",e.querySelector("input").focus(),!e.classList.contains("hidden")){let t=document.querySelector(".pagefind-ui__search-clear");t&&!t.hasAttribute("listenerOnClick")&&(t.setAttribute("listenerOnClick","true"),t.addEventListener("click",()=>{e.classList.toggle("hidden")}))}})})</script><link type=text/css rel=stylesheet href=/dist/lib/katex/katex.min.505d5f829022bb7b4f24dfee0aa1141cd7bba67afe411d1240335f820960b5c3.css integrity="sha256-UF1fgpAiu3tPJN/uCqEUHNe7pnr+QR0SQDNfgglgtcM="><script defer src=/dist/lib/katex/katex.min.dc84b296ec3e884de093158f760fd9d45b6c7abe58b5381557f4e138f46a58ae.js integrity="sha256-3ISyluw+iE3gkxWPdg/Z1Ftser5YtTgVV/ThOPRqWK4="></script><script defer src=/js/katex-renderer.6579ec9683211cfb952064aedf3a3baea5eeb17a061775b32b70917474637c80.js integrity="sha256-ZXnsloMhHPuVIGSu3zo7rqXusXoGF3WzK3CRdHRjfIA="></script><script defer src=/js/hugo-blox-en.min.e5fa931947cac2d947732ea37a770aae2b5bd4a50b6048060cd129b46159a06d.js integrity="sha256-5fqTGUfKwtlHcy6jencKritb1KULYEgGDNEptGFZoG0="></script></head><body class="dark:bg-hb-dark dark:text-white page-wrapper" id=top><div id=page-bg></div><div class="page-header sticky top-0 z-30"><header id=site-header class=header><nav class="navbar px-3 flex justify-left"><div class="order-0 h-100"><a class=navbar-brand href=/ title="RBM Docs"><img fetchpriority=high decoding=async width=49 height=36 src=/media/logo_hu9071661120962382538.webp alt="RBM Docs"></a></div><input id=nav-toggle type=checkbox class=hidden>
+<label for=nav-toggle class="order-3 cursor-pointer flex items-center lg:hidden text-dark dark:text-white lg:order-1"><svg id="show-button" class="h-6 fill-current block" viewBox="0 0 20 20"><title>Open Menu</title><path d="M0 3h20v2H0V3zm0 6h20v2H0V9zm0 6h20v2H0V0z"/></svg>
+<svg id="hide-button" class="h-6 fill-current hidden" viewBox="0 0 20 20"><title>Close Menu</title><polygon points="11 9 22 9 22 11 11 11 11 22 9 22 9 11 -2 11 -2 9 9 9 9 -2 11 -2" transform="rotate(45 10 10)"/></svg></label><ul id=nav-menu class="navbar-nav order-3 hidden lg:flex w-full pb-6 lg:order-1 lg:w-auto lg:space-x-2 lg:pb-0 xl:space-x-8 justify-left"><li class=nav-item><a class=nav-link href=/>Home</a></li><li class=nav-item><a class=nav-link href=/docs/>Documentation</a></li><li class=nav-item><a class=nav-link href=/blog/>News</a></li><li class=nav-item><a class=nav-link href=/showcase/>Other examples</a></li><li class=nav-item><a class=nav-link href=/events/>Events</a></li><li class="mt-4 inline-block lg:hidden"><a href=/>Get Started</a></li></ul><div class="order-1 ml-auto flex items-center md:order-2 lg:ml-0"><button aria-label=search class="text-black hover:text-primary inline-block px-3 text-xl dark:text-white" id=search_toggle>
+<svg height="16" width="16" viewBox="0 0 512 512" fill="currentcolor"><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8.0 45.3s-32.8 12.5-45.3.0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9.0 208S93.1.0 208 0 416 93.1 416 208zM208 352a144 144 0 100-288 144 144 0 100 288z"/></svg></button><div class="px-3 text-black hover:text-primary-700 dark:text-white dark:hover:text-primary-300
+[&.active]:font-bold [&.active]:text-black/90 dark:[&.active]:text-white"><button class="theme-toggle mt-1" accesskey=t title=appearance>
+<svg id="moon" width="24" height="18" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:hidden"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+<svg id="sun" width="24" height="18" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:block [&:not(dark)]:hidden"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div><a href=/ class="inline-block rounded border px-5 py-2 font-semibold transition
+md:ml-4 px-4 py-1.5 text-sm
+border-black hover:bg-black dark:hover:bg-white dark:hover:text-black hover:text-white dark:border-white dark:text-white dark:hover:bg-white
+hidden lg:inline-block">Get Started</a></div></nav></header><div id=search class="hidden p-3"></div></div><div class="page-body my-10"><div class="mx-auto flex max-w-screen-xl"><aside class="hb-sidebar-container max-lg:[transform:translate3d(0,-100%,0)] lg:hidden xl:block"><div class="px-4 pt-4 lg:hidden"></div><div class="hb-scrollbar lg:h-[calc(100vh-var(--navbar-height))]"><ul class="flex flex-col gap-1 lg:hidden"><li><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/blog/>Recent and Upcoming methods
+<span data-hb-sidebar-toggle><svg fill="none" viewBox="0 0 24 24" stroke="currentcolor" class="h-[18px] min-w-[18px] rounded-sm p-0.5 hover:bg-gray-800/5 dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="origin-center transition-transform rtl:-rotate-180"/></svg></span></a><div class="ltr:pr-0 overflow-hidden"><ul class=hb-sidebar-list><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/blog/v1.0.0/>GEIM released!</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/blog/v2.0.0/>POD-DL-ROM released!</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/blog/todolist/>TODO list</a></li></ul></div></li><li class=open><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/>Posts
+<span data-hb-sidebar-toggle><svg fill="none" viewBox="0 0 24 24" stroke="currentcolor" class="h-[18px] min-w-[18px] rounded-sm p-0.5 hover:bg-gray-800/5 dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="origin-center transition-transform rtl:-rotate-180"/></svg></span></a><div class="ltr:pr-0 overflow-hidden"><ul class=hb-sidebar-list><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/eim/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/nirb2grid/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdwadv/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdwhelmholtz/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/podgalerkin/>index</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/podi/>index</a></li><li class="flex flex-col open"><a class="hb-sidebar-custom-link
+sidebar-active-item bg-primary-100 font-semibold text-primary-800 dark:bg-primary-300 dark:text-primary-900" href=/post/geim/>GEIM</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/pbdw/>My Post</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/offline/>Offline part</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/rsvd/>random Singular Value Decomposition</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/post/poddlrom/>The POD-DL-ROM</a></li></ul></div></li><li><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/showcase/>More applications
+<span data-hb-sidebar-toggle><svg fill="none" viewBox="0 0 24 24" stroke="currentcolor" class="h-[18px] min-w-[18px] rounded-sm p-0.5 hover:bg-gray-800/5 dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="origin-center transition-transform rtl:-rotate-180"/></svg></span></a><div class="ltr:pr-0 overflow-hidden"><ul class=hb-sidebar-list><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/showcase/cavity/>Cavity</a></li></ul></div></li><li><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/>Documentation
+<span data-hb-sidebar-toggle><svg fill="none" viewBox="0 0 24 24" stroke="currentcolor" class="h-[18px] min-w-[18px] rounded-sm p-0.5 hover:bg-gray-800/5 dark:hover:bg-gray-100/5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" class="origin-center transition-transform rtl:-rotate-180"/></svg></span></a><div class="ltr:pr-0 overflow-hidden"><ul class=hb-sidebar-list><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/poddlrom/>POD-DL-ROM</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/pod/>POD-Galerkin</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/podi/>POD-Interpolation</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/eim/>EIM</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/geim/>GEIM</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/nirb2grid/>NIRB 2-grid</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/pbdw/>PBDW</a></li><li class="flex flex-col"><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/docs/reference/>References</a></li></ul></div></li><li><a class="hb-sidebar-custom-link
+text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-primary-800 dark:hover:text-gray-50" href=/events/>Events</a></li></ul><div class="max-xl:hidden h-0 w-64 shrink-0"></div></div></aside><nav class="hb-toc order-last hidden w-64 shrink-0 xl:block print:hidden px-4" aria-label="table of contents"><div class="hb-scrollbar text-sm [hyphens:auto] sticky top-16 overflow-y-auto pr-4 pt-6 max-h-[calc(100vh-var(--navbar-height)-env(safe-area-inset-bottom))] -mr-4 rtl:-ml-4"><div class=backlinks><div class="mb-1 font-semibold tracking-tight">Backlinks</div><ul><li><a href=/docs/geim/ class=backlink>GEIM</a></li></ul></div></div></nav><article class="w-full break-words flex min-h-[calc(100vh-var(--navbar-height))] min-w-0 justify-center pb-8 pr-[calc(env(safe-area-inset-right)-1.5rem)]"><main class="w-full min-w-0 max-w-6xl px-6 pt-4 md:px-12"><h1 class="mt-2 text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">GEIM</h1><div class="mt-4 mb-16"><div class="text-gray-500 dark:text-gray-300 text-sm flex items-center flex-wrap gap-y-2"><span class=mr-1>Dec 13, 2024</span>
+<span class=mx-1>·</span>
+<span class=mx-1>5 min read</span></div><div class=mt-3></div></div><div class="prose prose-slate lg:prose-xl dark:prose-invert"><div class=highlight><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>import</span> <span class=nn>numpy</span> <span class=k>as</span> <span class=nn>np</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>skfem</span>  <span class=c1># for Finite Element Method</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>skfem</span> <span class=kn>import</span> <span class=n>Basis</span><span class=p>,</span> <span class=n>ElementTriP0</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>skfem</span> <span class=kn>import</span> <span class=n>MeshTri</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>matplotlib.pyplot</span> <span class=k>as</span> <span class=nn>plt</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>time</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># Param</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=n>Nx</span> <span class=o>=</span> <span class=mi>50</span>
+</span></span><span class=line><span class=cl><span class=n>Ny</span> <span class=o>=</span> <span class=mi>50</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Maillage triangulaire du carré (0,1)^2</span>
+</span></span><span class=line><span class=cl><span class=n>m</span> <span class=o>=</span> <span class=n>MeshTri</span><span class=o>.</span><span class=n>init_tensor</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>np</span><span class=o>.</span><span class=n>linspace</span><span class=p>(</span><span class=mf>0.0</span><span class=p>,</span> <span class=mf>1.0</span><span class=p>,</span> <span class=n>Nx</span> <span class=o>+</span> <span class=mi>1</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>np</span><span class=o>.</span><span class=n>linspace</span><span class=p>(</span><span class=mf>0.0</span><span class=p>,</span> <span class=mf>1.0</span><span class=p>,</span> <span class=n>Ny</span> <span class=o>+</span> <span class=mi>1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>dx</span><span class=o>=</span><span class=mf>1.</span><span class=o>/</span><span class=n>Nx</span>
+</span></span><span class=line><span class=cl><span class=n>dy</span><span class=o>=</span><span class=mf>1.</span><span class=o>/</span><span class=n>Ny</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>cell_areas</span><span class=o>=</span><span class=mf>0.5</span><span class=o>*</span><span class=n>dx</span><span class=o>*</span><span class=n>dy</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>NumberOfModes</span> <span class=o>=</span> <span class=mi>15</span>
+</span></span><span class=line><span class=cl><span class=n>NumberOfSnapshots</span> <span class=o>=</span> <span class=mi>20</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>MuMin</span> <span class=o>=</span> <span class=o>-</span><span class=mf>2.0</span>
+</span></span><span class=line><span class=cl><span class=n>MuMax</span> <span class=o>=</span> <span class=o>-</span><span class=mf>1.0</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>rw</span> <span class=o>=</span> <span class=mf>0.15</span>   <span class=c1># width of gaussian sensors</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>basis</span> <span class=o>=</span> <span class=n>Basis</span><span class=p>(</span><span class=n>m</span><span class=p>,</span> <span class=n>ElementTriP0</span><span class=p>())</span>   <span class=c1># P0 : one value for each element</span>
+</span></span><span class=line><span class=cl><span class=n>dof_locs</span> <span class=o>=</span> <span class=n>basis</span><span class=o>.</span><span class=n>doflocs</span>           <span class=c1># barycenters of elements for P0</span>
+</span></span><span class=line><span class=cl><span class=n>ndof</span> <span class=o>=</span> <span class=n>dof_locs</span><span class=o>.</span><span class=n>shape</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># training set</span>
+</span></span><span class=line><span class=cl><span class=n>mu1_train</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>linspace</span><span class=p>(</span><span class=n>MuMin</span><span class=p>,</span> <span class=n>MuMax</span><span class=p>,</span> <span class=n>NumberOfSnapshots</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>mu2_train</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>linspace</span><span class=p>(</span><span class=n>MuMin</span><span class=p>,</span> <span class=n>MuMax</span><span class=p>,</span> <span class=n>NumberOfSnapshots</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># Function g(x; mu1, mu2)</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>g_fun</span><span class=p>(</span><span class=n>x</span><span class=p>,</span> <span class=n>mu1</span><span class=p>,</span> <span class=n>mu2</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mf>1.0</span> <span class=o>/</span> <span class=p>((</span><span class=n>x</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>-</span> <span class=n>mu1</span><span class=p>)</span><span class=o>**</span><span class=mi>2</span> <span class=o>+</span> <span class=p>(</span><span class=n>x</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span> <span class=o>-</span> <span class=n>mu2</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>project_g</span><span class=p>(</span><span class=n>mu1</span><span class=p>,</span> <span class=n>mu2</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>basis</span><span class=o>.</span><span class=n>project</span><span class=p>(</span><span class=k>lambda</span> <span class=n>x</span><span class=p>:</span> <span class=n>g_fun</span><span class=p>(</span><span class=n>x</span><span class=p>,</span> <span class=n>mu1</span><span class=p>,</span> <span class=n>mu2</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># Gaussian kernel ell_m(x)</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>gaussian_weight_noC</span><span class=p>(</span><span class=n>x</span><span class=p>,</span> <span class=n>xm</span><span class=p>,</span> <span class=n>rw</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>    Gaussian centered at xm, without normalization constant.
+</span></span></span><span class=line><span class=cl><span class=s2>    x: shape (2, npts)
+</span></span></span><span class=line><span class=cl><span class=s2>    xm: shape (2,)
+</span></span></span><span class=line><span class=cl><span class=s2>    &#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>np</span><span class=o>.</span><span class=n>exp</span><span class=p>(</span><span class=o>-</span><span class=mf>0.5</span> <span class=o>*</span> <span class=n>np</span><span class=o>.</span><span class=n>sum</span><span class=p>((</span><span class=n>x</span> <span class=o>-</span> <span class=n>xm</span><span class=p>[:,</span> <span class=kc>None</span><span class=p>])</span><span class=o>**</span><span class=mi>2</span><span class=p>,</span> <span class=n>axis</span><span class=o>=</span><span class=mi>0</span><span class=p>)</span> <span class=o>/</span> <span class=n>rw</span><span class=o>**</span><span class=mi>2</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># Construction of continuous-inspired candidate sensors l_m</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>sigma_m_from_center</span><span class=p>(</span><span class=n>xm</span><span class=p>,</span> <span class=n>rw</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>    Build the discrete representation of the continuous functional
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>        sigma_m(g) = \int_\Omega l_m(x) g dx
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>    for P0 functions, using barycenter quadrature:
+</span></span></span><span class=line><span class=cl><span class=s2>        \int_K l_m(x) dx ~ |K| l_m(x_K)=w[K]
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>    Returns a weight vector w such that
+</span></span></span><span class=line><span class=cl><span class=s2>        sigma_m(g_h) ~ sum_K w[K] * g_h[K]
+</span></span></span><span class=line><span class=cl><span class=s2>    &#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>l_vals</span> <span class=o>=</span> <span class=n>gaussian_weight_noC</span><span class=p>(</span><span class=n>dof_locs</span><span class=p>,</span> <span class=n>xm</span><span class=p>,</span> <span class=n>rw</span><span class=p>)</span>   <span class=c1># l(x_K)</span>
+</span></span><span class=line><span class=cl>    <span class=n>w_K</span> <span class=o>=</span> <span class=n>cell_areas</span> <span class=o>*</span> <span class=n>l_vals</span>                          <span class=c1># |K| * l(x_K)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>s</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>sum</span><span class=p>(</span><span class=n>w_K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>s</span> <span class=o>&gt;</span> <span class=mf>1e-14</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>w_K</span> <span class=o>=</span> <span class=n>w_K</span> <span class=o>/</span> <span class=n>s</span>   <span class=c1># normalize so that l_m(1) = 1 approximately</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>w_K</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>apply_sigma_m</span><span class=p>(</span><span class=n>w</span><span class=p>,</span> <span class=n>u</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;
+</span></span></span><span class=line><span class=cl><span class=s2>    Apply the functional represented by weights w to the discrete field u.
+</span></span></span><span class=line><span class=cl><span class=s2>    &#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>np</span><span class=o>.</span><span class=n>dot</span><span class=p>(</span><span class=n>w</span><span class=p>,</span> <span class=n>u</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># candidate sensors: one candidate centered at each barycenter</span>
+</span></span><span class=line><span class=cl><span class=n>L_candidates</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl><span class=n>L_centers</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=n>k</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>ndof</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>xm</span> <span class=o>=</span> <span class=n>dof_locs</span><span class=p>[:,</span> <span class=n>k</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>wm</span> <span class=o>=</span> <span class=n>sigma_m_from_center</span><span class=p>(</span><span class=n>xm</span><span class=p>,</span> <span class=n>rw</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>L_candidates</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>wm</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>L_centers</span><span class=o>.</span><span class=n>append</span><span class=p>((</span><span class=n>xm</span><span class=p>[</span><span class=mi>0</span><span class=p>],</span> <span class=n>xm</span><span class=p>[</span><span class=mi>1</span><span class=p>]))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># OFFLINE : initialization</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>ns</span> <span class=o>=</span> <span class=n>NumberOfSnapshots</span>
+</span></span><span class=line><span class=cl><span class=n>ntrain</span> <span class=o>=</span> <span class=n>ns</span> <span class=o>*</span> <span class=n>ns</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>GGrid</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>((</span><span class=n>ndof</span><span class=p>,</span> <span class=n>ntrain</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>GinftyGrid</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>(</span><span class=n>ntrain</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>mu_pairs</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>col</span> <span class=o>=</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=n>a</span> <span class=ow>in</span> <span class=n>mu1_train</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>b</span> <span class=ow>in</span> <span class=n>mu2_train</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>u</span> <span class=o>=</span> <span class=n>project_g</span><span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>GGrid</span><span class=p>[:,</span> <span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>u</span>
+</span></span><span class=line><span class=cl>        <span class=n>GinftyGrid</span><span class=p>[</span><span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>linalg</span><span class=o>.</span><span class=n>norm</span><span class=p>(</span><span class=n>u</span><span class=p>,</span> <span class=n>np</span><span class=o>.</span><span class=n>inf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>mu_pairs</span><span class=o>.</span><span class=n>append</span><span class=p>((</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>        <span class=n>col</span> <span class=o>+=</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># first parameter</span>
+</span></span><span class=line><span class=cl><span class=n>muIndex</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>argmax</span><span class=p>(</span><span class=n>GinftyGrid</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>muIndexlist</span> <span class=o>=</span> <span class=p>[</span><span class=n>muIndex</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>mu1_star</span><span class=p>,</span> <span class=n>mu2_star</span> <span class=o>=</span> <span class=n>mu_pairs</span><span class=p>[</span><span class=n>muIndex</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=n>g1</span> <span class=o>=</span> <span class=n>GGrid</span><span class=p>[:,</span> <span class=n>muIndex</span><span class=p>]</span><span class=o>.</span><span class=n>copy</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># first magic sensor l_1: maximize |l(g1)|</span>
+</span></span><span class=line><span class=cl><span class=n>scores</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([</span><span class=n>np</span><span class=o>.</span><span class=n>abs</span><span class=p>(</span><span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>wm</span><span class=p>,</span> <span class=n>g1</span><span class=p>))</span> <span class=k>for</span> <span class=n>wm</span> <span class=ow>in</span> <span class=n>L_candidates</span><span class=p>])</span>
+</span></span><span class=line><span class=cl><span class=n>LIndex</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>argmax</span><span class=p>(</span><span class=n>scores</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>LIndexlist</span> <span class=o>=</span> <span class=p>[</span><span class=n>LIndex</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=n>Llist</span> <span class=o>=</span> <span class=p>[</span><span class=n>L_candidates</span><span class=p>[</span><span class=n>LIndex</span><span class=p>]]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=s2>&#34;First magic sensor center:&#34;</span><span class=p>,</span> <span class=n>L_centers</span><span class=p>[</span><span class=n>LIndex</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># first basis function q1 normalized by l_1(q1)=1</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>q1</span> <span class=o>=</span> <span class=n>g1</span> <span class=o>/</span>  <span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>Llist</span><span class=p>[</span><span class=mi>0</span><span class=p>],</span> <span class=n>g1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>qlist</span> <span class=o>=</span> <span class=p>[</span><span class=n>q1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># OFFLINE : GEIM iterations</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=n>M</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=mi>1</span><span class=p>,</span> <span class=n>NumberOfModes</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;M = </span><span class=si>{</span><span class=n>M</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># Interpolation matrix B_M with entries l_i(q_j)</span>
+</span></span><span class=line><span class=cl>    <span class=n>Qmat</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>((</span><span class=n>M</span><span class=p>,</span> <span class=n>M</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>i</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>M</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=n>j</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>M</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>            <span class=n>Qmat</span><span class=p>[</span><span class=n>i</span><span class=p>,</span> <span class=n>j</span><span class=p>]</span> <span class=o>=</span> <span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>Llist</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=n>qlist</span><span class=p>[</span><span class=n>j</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ResidualGrid</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>((</span><span class=n>ndof</span><span class=p>,</span> <span class=n>ntrain</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>    <span class=n>ResidualInf</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>(</span><span class=n>ntrain</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># residual for each training parameter</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>col</span><span class=p>,</span> <span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>)</span> <span class=ow>in</span> <span class=nb>enumerate</span><span class=p>(</span><span class=n>mu_pairs</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>        <span class=n>u</span> <span class=o>=</span> <span class=n>GGrid</span><span class=p>[:,</span> <span class=n>col</span><span class=p>]</span><span class=o>.</span><span class=n>copy</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>rhs</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([</span><span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>Llist</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=n>u</span><span class=p>)</span> <span class=k>for</span> <span class=n>i</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>M</span><span class=p>)])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>alpha</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>linalg</span><span class=o>.</span><span class=n>solve</span><span class=p>(</span><span class=n>Qmat</span><span class=p>,</span> <span class=n>rhs</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>residual</span> <span class=o>=</span> <span class=n>u</span><span class=o>.</span><span class=n>copy</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=n>i</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>M</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>            <span class=n>residual</span> <span class=o>-=</span> <span class=n>alpha</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>*</span> <span class=n>qlist</span><span class=p>[</span><span class=n>i</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>ResidualGrid</span><span class=p>[:,</span> <span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>residual</span>
+</span></span><span class=line><span class=cl>        <span class=n>ResidualInf</span><span class=p>[</span><span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>linalg</span><span class=o>.</span><span class=n>norm</span><span class=p>(</span><span class=n>residual</span><span class=p>,</span> <span class=n>np</span><span class=o>.</span><span class=n>inf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># avoid already selected parameters</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>old_idx</span> <span class=ow>in</span> <span class=n>muIndexlist</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>ResidualInf</span><span class=p>[</span><span class=n>old_idx</span><span class=p>]</span> <span class=o>=</span> <span class=o>-</span><span class=mf>1e30</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># new parameter</span>
+</span></span><span class=line><span class=cl>    <span class=n>muIndex</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>argmax</span><span class=p>(</span><span class=n>ResidualInf</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>muIndexlist</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>muIndex</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>mu1_star</span><span class=p>,</span> <span class=n>mu2_star</span> <span class=o>=</span> <span class=n>mu_pairs</span><span class=p>[</span><span class=n>muIndex</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=n>rM</span> <span class=o>=</span> <span class=n>ResidualGrid</span><span class=p>[:,</span> <span class=n>muIndex</span><span class=p>]</span><span class=o>.</span><span class=n>copy</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>print</span><span class=p>(</span><span class=s2>&#34;Selected parameter:&#34;</span><span class=p>,</span> <span class=p>(</span><span class=n>mu1_star</span><span class=p>,</span> <span class=n>mu2_star</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>    <span class=nb>print</span><span class=p>(</span><span class=s2>&#34;Residual max norm :&#34;</span><span class=p>,</span> <span class=n>np</span><span class=o>.</span><span class=n>max</span><span class=p>(</span><span class=n>ResidualInf</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># choose new magic sensor maximizing |l(rM)|</span>
+</span></span><span class=line><span class=cl>    <span class=n>scores</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([</span><span class=nb>abs</span><span class=p>(</span><span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>w</span><span class=p>,</span> <span class=n>rM</span><span class=p>))</span> <span class=k>for</span> <span class=n>w</span> <span class=ow>in</span> <span class=n>L_candidates</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># avoid already selected sensors</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>old_L</span> <span class=ow>in</span> <span class=n>LIndexlist</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>scores</span><span class=p>[</span><span class=n>old_L</span><span class=p>]</span> <span class=o>=</span> <span class=o>-</span><span class=n>np</span><span class=o>.</span><span class=n>inf</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>LIndex</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>argmax</span><span class=p>(</span><span class=n>scores</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>LIndexlist</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>LIndex</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>Llist</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>L_candidates</span><span class=p>[</span><span class=n>LIndex</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>print</span><span class=p>(</span><span class=s2>&#34;New magic sensor center:&#34;</span><span class=p>,</span> <span class=n>L_centers</span><span class=p>[</span><span class=n>LIndex</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># normalize new basis function by l_M(q_M)=1</span>
+</span></span><span class=line><span class=cl>    <span class=n>qM</span> <span class=o>=</span> <span class=n>rM</span> <span class=o>/</span> <span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>Llist</span><span class=p>[</span><span class=o>-</span><span class=mi>1</span><span class=p>],</span> <span class=n>rM</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>qlist</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>qM</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># ONLINE</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>mu1_target</span> <span class=o>=</span> <span class=o>-</span><span class=mf>0.5</span>
+</span></span><span class=line><span class=cl><span class=n>mu2_target</span> <span class=o>=</span> <span class=o>-</span><span class=mf>0.5</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>u_true</span> <span class=o>=</span> <span class=n>project_g</span><span class=p>(</span><span class=n>mu1_target</span><span class=p>,</span> <span class=n>mu2_target</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># complete interpolation matrix</span>
+</span></span><span class=line><span class=cl><span class=n>Qmat</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>((</span><span class=n>NumberOfModes</span><span class=p>,</span> <span class=n>NumberOfModes</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=n>i</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>NumberOfModes</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>j</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>NumberOfModes</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>        <span class=n>Qmat</span><span class=p>[</span><span class=n>i</span><span class=p>,</span> <span class=n>j</span><span class=p>]</span> <span class=o>=</span> <span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>Llist</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=n>qlist</span><span class=p>[</span><span class=n>j</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># rhs = [l_i(u_true)]</span>
+</span></span><span class=line><span class=cl><span class=n>rhs</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([</span><span class=n>apply_sigma_m</span><span class=p>(</span><span class=n>Llist</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=n>u_true</span><span class=p>)</span> <span class=k>for</span> <span class=n>i</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>NumberOfModes</span><span class=p>)])</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># coefficients GEIM</span>
+</span></span><span class=line><span class=cl><span class=n>alpha</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>linalg</span><span class=o>.</span><span class=n>solve</span><span class=p>(</span><span class=n>Qmat</span><span class=p>,</span> <span class=n>rhs</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># reconstruction GEIM</span>
+</span></span><span class=line><span class=cl><span class=n>u_geim</span> <span class=o>=</span> <span class=n>np</span><span class=o>.</span><span class=n>zeros</span><span class=p>(</span><span class=n>ndof</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=n>j</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>NumberOfModes</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>u_geim</span> <span class=o>+=</span> <span class=n>alpha</span><span class=p>[</span><span class=n>j</span><span class=p>]</span> <span class=o>*</span> <span class=n>qlist</span><span class=p>[</span><span class=n>j</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl><span class=c1># Test in one point</span>
+</span></span><span class=line><span class=cl><span class=c1># ============================================================</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>xseek</span><span class=p>,</span> <span class=n>yseek</span> <span class=o>=</span> <span class=mf>0.5</span><span class=p>,</span> <span class=mf>0.5</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>element_finder</span> <span class=o>=</span> <span class=n>m</span><span class=o>.</span><span class=n>element_finder</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>element_index</span> <span class=o>=</span> <span class=n>element_finder</span><span class=p>(</span><span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([</span><span class=n>xseek</span><span class=p>]),</span> <span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([</span><span class=n>yseek</span><span class=p>]))[</span><span class=mi>0</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>approx_value</span> <span class=o>=</span> <span class=n>u_geim</span><span class=p>[</span><span class=n>element_index</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=n>true_value_fem</span> <span class=o>=</span> <span class=n>u_true</span><span class=p>[</span><span class=n>element_index</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=n>true_value_exact</span> <span class=o>=</span> <span class=n>g_fun</span><span class=p>(</span><span class=n>np</span><span class=o>.</span><span class=n>array</span><span class=p>([[</span><span class=n>xseek</span><span class=p>],</span> <span class=p>[</span><span class=n>yseek</span><span class=p>]]),</span> <span class=n>mu1_target</span><span class=p>,</span> <span class=n>mu2_target</span><span class=p>)[</span><span class=mi>0</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;Tested point : (</span><span class=si>{</span><span class=n>xseek</span><span class=si>}</span><span class=s2>, </span><span class=si>{</span><span class=n>yseek</span><span class=si>}</span><span class=s2>)&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;Approximation GEIM  : </span><span class=si>{</span><span class=n>approx_value</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;Projected FEM       : </span><span class=si>{</span><span class=n>true_value_fem</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;Exact value g(x,mu) : </span><span class=si>{</span><span class=n>true_value_exact</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;Error |GEIM - FEM|  : </span><span class=si>{</span><span class=nb>abs</span><span class=p>(</span><span class=n>approx_value</span> <span class=o>-</span> <span class=n>true_value_fem</span><span class=p>)</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;Error |GEIM - exact|: </span><span class=si>{</span><span class=nb>abs</span><span class=p>(</span><span class=n>approx_value</span> <span class=o>-</span> <span class=n>true_value_exact</span><span class=p>)</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>)</span>
+</span></span></code></pre></div><pre><code>First magic sensor center: (0.01, 0.02)
+M = 1
+Selected parameter: (-1.0, -2.0)
+Residual max norm : 0.02627306674745511
+New magic sensor center: (1.0, 0.75)
+M = 2
+Selected parameter: (-1.631578947368421, -1.0)
+Residual max norm : 0.015000046418788585
+New magic sensor center: (0.01, 1.0)
+M = 3
+Selected parameter: (-2.0, -2.0)
+Residual max norm : 0.0019474457678794344
+New magic sensor center: (0.56, 0.01)
+M = 4
+Selected parameter: (-1.2105263157894737, -1.0)
+Residual max norm : 0.00031219133964447207
+New magic sensor center: (0.01, 0.46)
+M = 5
+Selected parameter: (-1.0, -1.368421052631579)
+Residual max norm : 0.00026240204454349336
+New magic sensor center: (1.0, 0.01)
+M = 6
+Selected parameter: (-1.3157894736842106, -1.7894736842105263)
+Residual max norm : 5.765112454682722e-05
+New magic sensor center: (0.43, 0.74)
+M = 7
+Selected parameter: (-2.0, -1.105263157894737)
+Residual max norm : 1.5172047617061872e-05
+New magic sensor center: (0.26, 0.01)
+M = 8
+Selected parameter: (-1.0, -1.6842105263157894)
+Residual max norm : 6.4691190488781556e-06
+New magic sensor center: (0.01, 0.7000000000000001)
+M = 9
+Selected parameter: (-1.1578947368421053, -1.3157894736842106)
+Residual max norm : 1.9236475368019866e-06
+New magic sensor center: (0.28, 0.43)
+M = 10
+Selected parameter: (-1.1578947368421053, -2.0)
+Residual max norm : 1.5631815551238951e-06
+New magic sensor center: (0.6900000000000001, 0.48)
+M = 11
+Selected parameter: (-1.0, -1.105263157894737)
+Residual max norm : 3.9161614561813685e-07
+New magic sensor center: (0.99, 1.0)
+M = 12
+Selected parameter: (-1.105263157894737, -1.0)
+Residual max norm : 7.386577928874025e-07
+New magic sensor center: (0.1, 0.21000000000000002)
+M = 13
+Selected parameter: (-1.631578947368421, -2.0)
+Residual max norm : 1.7578529701250268e-07
+New magic sensor center: (0.65, 1.0)
+M = 14
+Selected parameter: (-2.0, -1.5789473684210527)
+Residual max norm : 1.6866644894449681e-07
+New magic sensor center: (0.74, 0.01)
+
+Tested point : (0.5, 0.5)
+Approximation GEIM  : 0.498339657743457
+Projected FEM       : 0.49834174836073053
+Exact value g(x,mu) : 0.5
+Error |GEIM - FEM|  : 2.0906172735202233e-06
+Error |GEIM - exact|: 0.0016603422565429904
+</code></pre><div class=highlight><pre tabindex=0 class=chroma><code class=language-python data-lang=python></code></pre></div></div><time class="mt-12 mb-8 block text-xs text-gray-500 ltr:text-right rtl:text-left dark:text-gray-400" datetime=2024-12-13T10:19:20.000Z><span>Last updated on</span>
+Dec 13, 2024</time><div class="container mx-auto prose prose-slate lg:prose-xl dark:prose-invert mt-5"><div class="max-w-prose print:hidden"><section class="flex flex-row flex-wrap justify-center pt-4 text-xl"><a target=_blank rel=noopener class="m-1 rounded-md bg-neutral-300 p-1.5 text-neutral-700 hover:bg-primary-500 hover:text-neutral-300 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-primary-400 dark:hover:text-neutral-800" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Freducedbasis.github.io%2Fpost%2Fgeim%2F&amp;text=GEIM" title=X aria-label=X id=share-link-x><svg style="height:1em" viewBox="0 0 512 512"><path fill="currentcolor" d="M389.2 48h70.6L305.6 224.2 487 464H345L233.7 318.6 106.5 464H35.8L200.7 275.5 26.8 48H172.4L272.9 180.9 389.2 48zM364.4 421.8h39.1L151.1 88h-42L364.4 421.8z"/></svg>
+</a><a target=_blank rel=noopener class="m-1 rounded-md bg-neutral-300 p-1.5 text-neutral-700 hover:bg-primary-500 hover:text-neutral-300 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-primary-400 dark:hover:text-neutral-800" href="https://www.facebook.com/sharer.php?u=https%3A%2F%2Freducedbasis.github.io%2Fpost%2Fgeim%2F&amp;t=GEIM" title=Facebook aria-label=Facebook id=share-link-facebook><svg style="height:1em" viewBox="0 0 24 24"><path fill="currentcolor" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55.0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
+</a><a target=_blank rel=noopener class="m-1 rounded-md bg-neutral-300 p-1.5 text-neutral-700 hover:bg-primary-500 hover:text-neutral-300 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-primary-400 dark:hover:text-neutral-800" href="mailto:?subject=GEIM&amp;body=https%3A%2F%2Freducedbasis.github.io%2Fpost%2Fgeim%2F" title=Email aria-label=Email id=share-link-email><svg style="height:1em" viewBox="0 0 24 24"><path fill="none" stroke="currentcolor" stroke-linecap="round" stroke-width="1.5" d="M16.5 12a4.5 4.5.0 11-9 0 4.5 4.5.0 019 0zm0 0c0 1.657 1.007 3 2.25 3S21 13.657 21 12a9 9 0 10-2.636 6.364M16.5 12V8.25"/></svg>
+</a><a target=_blank rel=noopener class="m-1 rounded-md bg-neutral-300 p-1.5 text-neutral-700 hover:bg-primary-500 hover:text-neutral-300 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-primary-400 dark:hover:text-neutral-800" href="https://www.linkedin.com/shareArticle?url=https%3A%2F%2Freducedbasis.github.io%2Fpost%2Fgeim%2F&amp;title=GEIM" title=LinkedIn aria-label=LinkedIn id=share-link-linkedin><svg style="height:1em" height="1em" viewBox="0 0 448 512"><path fill="currentcolor" d="M416 32H31.9C14.3 32 0 46.5.0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6.0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3.0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2.0 38.5 17.3 38.5 38.5.0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6.0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2.0 79.7 44.3 79.7 101.9V416z"/></svg>
+</a><a target=_blank rel=noopener class="m-1 rounded-md bg-neutral-300 p-1.5 text-neutral-700 hover:bg-primary-500 hover:text-neutral-300 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-primary-400 dark:hover:text-neutral-800" href="whatsapp://send?text=GEIM%20https%3A%2F%2Freducedbasis.github.io%2Fpost%2Fgeim%2F" title=WhatsApp aria-label=WhatsApp id=share-link-whatsapp><svg style="height:1em" viewBox="0 0 256 256" fill="currentcolor"><path d="m187.58 144.84-32-16a8 8 0 00-8 .5l-14.69 9.8a40.55 40.55.0 01-16-16l9.8-14.69a8 8 0 00.5-8l-16-32A8 8 0 00104 64a40 40 0 00-40 40 88.1 88.1.0 0088 88 40 40 0 0040-40 8 8 0 00-4.42-7.16zM152 176a72.08 72.08.0 01-72-72 24 24 0 0119.29-23.54l11.48 23L101 118a8 8 0 00-.73 7.51 56.47 56.47.0 0030.15 30.15A8 8 0 00138 155l14.61-9.74 23 11.48A24 24 0 01152 176zM128 24A104 104 0 0036.18 176.88l-11.35 34.05a16 16 0 0020.24 20.24l34.05-11.35A104 104 0 10128 24zm0 192a87.87 87.87.0 01-44.06-11.81 8 8 0 00-6.54-.67L40 216l12.47-37.4a8 8 0 00-.66-6.54A88 88 0 11128 216z"/></svg></a></section><div class="flex pt-12 pb-4"><div class=place-self-center><div class="text-[0.6rem] uppercase leading-3 text-neutral-500 dark:text-neutral-400">Authors</div><div class="font-semibold leading-6 text-neutral-800 dark:text-neutral-300"></div><div class="text-2xl sm:text-lg pt-1"><div class="flex flex-wrap text-neutral-500 dark:text-neutral-300"><a class="pr-2 transition-transform hover:scale-125 hover:text-primary-700 dark:hover:text-primary-400" style=will-change:transform href=mailto:reducedbases@gmail.com aria-label=At-Symbol><svg style="height:1em" viewBox="0 0 24 24"><path fill="none" stroke="currentcolor" stroke-linecap="round" stroke-width="1.5" d="M16.5 12a4.5 4.5.0 11-9 0 4.5 4.5.0 019 0zm0 0c0 1.657 1.007 3 2.25 3S21 13.657 21 12a9 9 0 10-2.636 6.364M16.5 12V8.25"/></svg></a></div></div></div></div><div class="pt-1 no-prose w-full"><hr class="border-dotted border-neutral-300 dark:border-neutral-600"><div class="flex flex-col md:flex-row flex-nowrap justify-between gap-5 pt-2"><div><a class="group flex no-underline" href=/post/podi/><span class="mt-[-0.3rem] me-2 text-neutral-700 transition-transform group-hover:-translate-x-[2px] group-hover:text-primary-600 dark:text-neutral dark:group-hover:text-primary-400"><span class="ltr:inline rtl:hidden">&larr;</span></span>
+<span class="flex flex-col"><span class="mt-[0.1rem] leading-6 group-hover:underline group-hover:decoration-primary-500"></span>
+<span class="mt-[0.1rem] text-xs text-neutral-500 dark:text-neutral-400">Dec 13, 2024</span></span></a></div><div><a class="group flex text-right no-underline" href=/post/pbdw/><span class="flex flex-col"><span class="mt-[0.1rem] leading-6 group-hover:underline group-hover:decoration-primary-500">My Post</span>
+<span class="mt-[0.1rem] text-xs text-neutral-500 dark:text-neutral-400">Dec 13, 2024
+</span></span><span class="mt-[-0.3rem] ms-2 text-neutral-700 transition-transform group-hover:-translate-x-[2px] group-hover:text-primary-600 dark:text-neutral dark:group-hover:text-primary-400"><span class=ltr:inline>&rarr;</span></span></a></div></div></div></div></div></main></article></div></div><div class=page-footer><footer class="container mx-auto flex flex-col justify-items-center text-sm leading-6 mt-24 mb-4 text-slate-700 dark:text-slate-200"><p class="powered-by text-center">Thanks</p><p class="powered-by footer-license-icons"><a href=https://creativecommons.org/licenses/by-nc-nd/4.0 rel="noopener noreferrer" target=_blank aria-label="Creative Commons"><i class="fab fa-creative-commons fa-2x" aria-hidden=true></i>
+<i class="fab fa-creative-commons-by fa-2x" aria-hidden=true></i>
+<i class="fab fa-creative-commons-nc fa-2x" aria-hidden=true></i>
+<i class="fab fa-creative-commons-nd fa-2x" aria-hidden=true></i></a></p><p class="powered-by text-center">Published with <a href="https://hugoblox.com/?utm_campaign=poweredby" target=_blank rel=noopener>Hugo Blox Builder</a> — the free, <a href=https://github.com/HugoBlox/hugo-blox-builder target=_blank rel=noopener>open source</a> website builder that empowers creators.</p></footer></div></body></html>

@@ -548,20 +548,20 @@ $$ g^M(x,\mu^{target})=\sum_{i=1}^M \alpha(\mu^{target}) q(x). $$&lt;p>There exi
 &lt;p>
 &lt;/p>
 &lt;/li>
-&lt;/ul></description></item><item><title>EIM</title><link>https://reducedbasis.github.io/docs/geim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/geim/</guid><description>&lt;p>Prerequisite:
+&lt;/ul></description></item><item><title>GEIM</title><link>https://reducedbasis.github.io/docs/geim/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://reducedbasis.github.io/docs/geim/</guid><description>&lt;p>Prerequisite:
 &lt;/p>
 &lt;p>The Generalized Empirical Interpolation Method (GEIM) extends the EIM by replacing the selection of magic points $(x_n)_{n=1,\dots,M}$ with the choice of linear functionals $(\sigma_n)_{n=1,\dots,M}.$&lt;/p>
 &lt;p>This makes it possible to use locally weighted averages over the magic points like sensor functions.&lt;/p>
 &lt;p>Of course, one can see the EIM as a particular case of GEIM where the functionnals $\sigma_n$ are Dirac measures.
-The interpolation matrix $Q$ is defined by $Q_{ij}=\sigma_i(q_j)=q_j(x_i)$ and the right hand side $G$ is given by $G_i(\mu)=\sigma_i(g(\cdot;\mu))=g(x_i;mu)$.&lt;/p>
+The interpolation matrix $Q$ is defined by $Q_{ij}=\sigma_i(q_j)=q_j(x_i)$ and the right hand side $G$ is given by $G_i(\mu)=\sigma_i(g(\cdot;\mu))=g(x_i;\mu)$.&lt;/p>
 &lt;p>In GEIM, the approximation stays the same $g_M(x;mu)= \sum_{j=1}^M \ \alpha_j(\mu) q_j(x),$ but the interpolation conditions that are imposed become&lt;/p>
 $$
 \begin{equation}
 \boxed{x_1,\dots,x_M\in\Omega:\quad \sigma_n(g(\cdot;\mu)) = \sigma_n(\mathcal{I}_M[g](\cdot;\mu)),\quad n=1,\dots,M.}
 \end{equation}
-$$&lt;p>The functionals $(\sigma_n)_{n=1,\dots,M}$ can be any linear functionals, for instance gaussian sensors $\sigma_n(v)=\int_{\Omega} l_n(x) \ v(x) \ dx,$ with $l_n(x)=C_n \mathrm{exp} \left( -\frac{\|x-x_n\|^2}{2r_w^2}\right)$.
-The interpolation matrix $Q$ is defined by $Q_{ij}=\sigma_i(q_j)$ and the right hand side $G$ is given by $G_i(\mu)=\sigma_i(g(\cdot;\mu))$. Then we solve $Q \alpha(\mu) = G(\mu)$.&lt;/p>
-&lt;p>$\sigma_n(g)=\int_{\Omega} l_m(x) \ g(x) \ dx$&lt;/p>
+$$&lt;p>The functionals $(\sigma_n)_{n=1,\dots,M}$ can be any linear functionals, for instance gaussian sensors&lt;/p>
+$$\sigma_n(v)=\int_{\Omega} l_n(x) \ v(x) \ dx,$$&lt;p>with $l_n(x)=C_n \mathrm{exp} \left( -\frac{\|x-x_n\|^2}{2r_w^2}\right).$&lt;/p>
+&lt;p>The interpolation matrix $Q$ is defined by $Q_{ij}=\sigma_i(q_j)$ and the right hand side $G$ is given by $G_i(\mu)=\sigma_i(g(\cdot;\mu))$. Then we solve $Q \alpha(\mu) = G(\mu)$.&lt;/p>
 &lt;p>In the notebook we use P0 elements, and in that case $g_h$ is constant on each element. Thus, $\sigma_n(g_h)=\sum_K g_K \int_K l_n(x) \ dx$ and we can approximate $\int_K l_n(x) \ dx$ by $|K| l_n(x_K)$.
 The continuous sensor becomes a discretized vector of weights, with $w_K^{(n)}=|K| l_n(x_K)$ and $\sigma_n(g_h)\simeq \sum_K w_K^{(n)} g_K$.&lt;/p>
 &lt;h2 id="codes">Codes:&lt;/h2>
